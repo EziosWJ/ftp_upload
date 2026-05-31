@@ -86,11 +86,20 @@ class FtpConfig(BaseModel):
     upload_interval_seconds: int = Field(300, ge=60, description="How often to upload data files")
 
 
+class SystemInfo(BaseModel):
+    """System-level information for the application."""
+    mine_code: str = Field("", description="煤矿编码，如：14122800315")
+    mine_name: str = Field("", description="煤矿名称，如：XX煤矿")
+    system_name: str = Field("", description="系统名称")
+    system_model: str = Field("", description="系统型号")
+
+
 class AppConfig(BaseModel):
     """Top-level application configuration."""
     devices: list[DeviceConfig] = []
     schedules: list[ScheduleConfig] = []
     ftp: FtpConfig = FtpConfig()
     web_port: int = 8000
+    system_info: SystemInfo = SystemInfo()
     data_dir: str = "data"
     log_level: str = "INFO"

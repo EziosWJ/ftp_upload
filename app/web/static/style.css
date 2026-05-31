@@ -177,19 +177,74 @@
     animation: pulse 2s infinite;
 }
 
-/* Register / Area row form controls — minimum width for small screens */
-#registers-list .card-body .row,
-#areas-list .card-body .row {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: 0.25rem;
+/* Register / Area list — table layout */
+#registers-list,
+#areas-list {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    margin-bottom: 1rem;
 }
 
-#registers-list .form-control,
-#registers-list .form-select,
-#areas-list .form-control,
-#areas-list .form-select {
-    min-width: 90px;
+#registers-list thead,
+#areas-list thead {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #495057;
+}
+
+#registers-list thead th,
+#areas-list thead th {
+    padding: 0.75rem;
+    text-align: center;
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.875rem;
+    border-right: 1px solid #dee2e6;
+}
+
+#registers-list thead th:last-child,
+#areas-list thead th:last-child {
+    border-right: none;
+}
+
+#registers-list tbody tr,
+#areas-list tbody tr {
+    border-bottom: 1px solid #dee2e6;
+}
+
+#registers-list tbody tr:hover,
+#areas-list tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+#registers-list tbody td,
+#areas-list tbody td {
+    padding: 0.5rem;
+    border-right: 1px solid #dee2e6;
+    vertical-align: middle;
+}
+
+#registers-list tbody td:last-child,
+#areas-list tbody td:last-child {
+    border-right: none;
+}
+
+#registers-list input,
+#registers-list select,
+#areas-list input,
+#areas-list select {
+    width: 100%;
+    min-width: 0 !important;
+    max-width: 100% !important;
+}
+
+#registers-list .btn,
+#areas-list .btn {
+    width: 100%;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
 }
 
 /* Scrollbar styles */

@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from ..config import load_config, save_config
 from ..models import (
     AppConfig, DeviceConfig, DeviceType, ScheduleConfig,
-    FtpConfig, ModbusRegisterConfig, S7AreaConfig, DataType
+    FtpConfig, ModbusRegisterConfig, S7AreaConfig, DataType, SystemInfo
 )
 
 router = APIRouter(prefix="/api")
@@ -210,6 +210,23 @@ async def test_ftp_connection():
     if ok:
         return {"status": "success", "message": msg}
     return {"status": "error", "message": msg}
+
+
+@router.get("/system-info")
+async def get_system_info():
+    """Get system information."""
+    config = load_config()
+    return {"system_info": config.system_info.model_dump()}
+
+
+@router.post("/system-info")
+async def update_system_info(system_info: SystemInfo):
+    """Update system information."""
+    config = load_config()
+    config.system_info = system_info
+    save_config(config)
+    logger.info("Updated system information")
+    return {"status": "success", "system_info": system_info.model_dump()}
 
 
 @router.get("/status")

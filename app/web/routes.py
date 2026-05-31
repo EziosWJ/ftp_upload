@@ -81,3 +81,13 @@ async def log_viewer(request: Request):
         request, "logs.html",
         {"active_page": "logs"},
     )
+
+
+@router.get("/system-info")
+async def system_info_page(request: Request):
+    """System information configuration page."""
+    config = load_config()
+    return templates.TemplateResponse(
+        request, "system_info.html",
+        {"config": config, "active_page": "system-info"},
+    )
