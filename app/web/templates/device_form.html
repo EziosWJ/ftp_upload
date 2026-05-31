@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+
+{% block title %}{% if device %}编辑设备{% else %}添加设备{% endif %} - 工业数据采集系统{% endblock %}
+{% block page_title %}{% if device %}编辑设备: {{ device.name }}{% else %}添加设备{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">{% if device %}编辑设备{% else %}添加新设备{% endif %}</h5>
+            </div>
+            <div class="card-body">
+                <form id="deviceForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">设备名称</label>
+                            <input type="text" class="form-control" name="name" value="{{ device.name if device else '' }}" required {% if device %}readonly{% endif %}>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">设备类型</label>
+                            <select class="form-select" name="device_type" onchange="toggleDeviceFields()" {% if device %}disabled{% endif %}>
+                                <option value="modbus_tcp" {% if device and device.device_type.value == 'modbus_tcp' %}selected{% endif %}>Modbus TCP</option>
+                                <option value="s7" {% if device and device.device_type.value == 's7' %}selected{% endif %}>Siemens S7</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">主机地址</label>
+                            <input type="text" class="form-control" name="host" value="{{ device.host if device else '' }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">端口</label>
+                            <input type="number" class="form-control" name="port" value="{{ device.port if device else 502 }}">
+                        </div>
+                    </div>
+
+                    <!-- Modbus specific fields -->
+                    <div id="modbus-fields" style="display: {% if device and device.device_type.value == 'modbus_tcp' %}block{% else %}none{% endif %};">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">从站ID</label>
+                                <input type="number" class="form-control" name="slave_id" value="{{ device.slave_id if device else 1 }}">
+                            </div>
+                        </div>
+                        <h6 class="mb-3">寄存器配置</h6>
+                        <div id="registers-list">
+                            {% if device and device.registers %}
+                                {% for reg in device.registers %}
+                                <div class="card mb-2" id="register-{{ loop.index }}">
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-2">
+                                                <input type="text" class="form-control form-control-sm" placeholder="名称" name="reg_name_{{ loop.index }}" value="{{ reg.name }}">
+                                            </div>
+                                            <div class="col-md-2">
+                                                <input type="number" class="form-control form-control-sm" placeholder="地址" name="reg_address_{{ loop.index }}" value="{{ reg.address }}">
+                                            </div>
+                                            <div class="col-md-1">
+                                                <input type="number" class="form-control form-control-sm" placeholder="数量" name="reg_count_{{ loop.index }}" value="{{ reg.count }}">
+                                            </div>
+                                            <div class="col-md-2">
+                                                <select class="form-select form-select-sm" name="reg_data_type_{{ loop.index }}">
+                                                    <option value="uint16" {% if reg.data_type.value == 'uint16' %}selected{% endif %}>UINT16</option>
+                                                    <option value="int16" {% if reg.data_type.value == 'int16' %}selected{% endif %}>INT16</option>
+                                                    <option value="uint32" {% if reg.data_type.value == 'uint32' %}selected{% endif %}>UINT32</option>
+                                                    <option value="int32" {% if reg.data_type.value == 'int32' %}selected{% endif %}>INT32</option>
+                                                    <option value="float32" {% if reg.data_type.value == 'float32' %}selected{% endif %}>FLOAT32</option>
+                                                    <option value="float64" {% if reg.data_type.value == 'float64' %}selected{% endif %}>FLOAT64</option>
+                                                    <option value="bool" {% if reg.data_type.value == 'bool' %}selected{% endif %}>BOOL</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-1">
+                                                <input type="number" class="form-control form-control-sm" placeholder="比例" name="reg_scale_{{ loop.index }}" value="{{ reg.scale }}" step="0.01">
+                                            </div>
+                                            <div class="col-md-2">
+                                                <input type="text" class="form-control form-control-sm" placeholder="单位" name="reg_unit_{{ loop.index }}" value="{{ reg.unit }}">
+                                            </div>
+                                            <div class="col-md-2">
+                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRegister({{ loop.index }})">删除</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addRegister()">
+                            <i class="bi bi-plus"></i> 添加寄存器
+                        </button>
+                    </div>
+
+                    <!-- S7 specific fields -->
+                    <div id="s7-fields" style="display: {% if device and device.device_type.value == 's7' %}block{% else %}none{% endif %};">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Rack</label>
+                                <input type="number" class="form-control" name="rack" value="{{ device.rack if device else 0 }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Slot</label>
+                                <input type="number" class="form-control" name="slot" value="{{ device.slot if device else 1 }}">
+                            </div>
+                        </div>
+                        <h6 class="mb-3">数据区域配置</h6>
+                        <div id="areas-list">
+                            {% if device and device.areas %}
+                                {% for area in device.areas %}
+                                <div class="card mb-2" id="area-{{ loop.index }}">
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-2">
+                                                <input type="text" class="form-control form-control-sm" placeholder="名称" name="area_name_{{ loop.index }}" value="{{ area.name }}">
+                                            </div>
+                                            <div class="col-md-2">
+                                                <select class="form-select form-select-sm" name="area_type_{{ loop.index }}">
+                                                    <option value="DB" {% if area.area == 'DB' %}selected{% endif %}>DB</option>
+                                                    <option value="I" {% if area.area == 'I' %}selected{% endif %}>I</option>
+                                                    <option value="Q" {% if area.area == 'Q' %}selected{% endif %}>Q</option>
+                                                    <option value="M" {% if area.area == 'M' %}selected{% endif %}>M</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <input type="number" class="form-control form-control-sm" placeholder="DB号" name="area_db_{{ loop.index }}" value="{{ area.db_number }}">
+                                            </div>
+                                            <div class="col-md-2">
+                                                <input type="number" class="form-control form-control-sm" placeholder="起始地址" name="area_start_{{ loop.index }}" value="{{ area.start }}">
+                                            </div>
+                                            <div class="col-md-1">
+                                                <input type="number" class="form-control form-control-sm" placeholder="大小" name="area_size_{{ loop.index }}" value="{{ area.size }}">
+                                            </div>
+                                            <div class="col-md-2">
+                                                <select class="form-select form-select-sm" name="area_data_type_{{ loop.index }}">
+                                                    <option value="float32" {% if area.data_type.value == 'float32' %}selected{% endif %}>FLOAT32</option>
+                                                    <option value="int16" {% if area.data_type.value == 'int16' %}selected{% endif %}>INT16</option>
+                                                    <option value="uint16" {% if area.data_type.value == 'uint16' %}selected{% endif %}>UINT16</option>
+                                                    <option value="int32" {% if area.data_type.value == 'int32' %}selected{% endif %}>INT32</option>
+                                                    <option value="uint32" {% if area.data_type.value == 'uint32' %}selected{% endif %}>UINT32</option>
+                                                    <option value="bool" {% if area.data_type.value == 'bool' %}selected{% endif %}>BOOL</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-1">
+                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeArea({{ loop.index }})">删除</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addArea()">
+                            <i class="bi bi-plus"></i> 添加数据区域
+                        </button>
+                    </div>
+
+                    <div class="form-check mt-3 mb-3">
+                        <input class="form-check-input" type="checkbox" name="enabled" {% if not device or device.enabled %}checked{% endif %}>
+                        <label class="form-check-label">启用设备</label>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-primary" onclick="saveDevice()">
+                            {% if device %}保存修改{% else %}添加设备{% endif %}
+                        </button>
+                        <a href="/devices" class="btn btn-secondary">取消</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">帮助信息</h5>
+            </div>
+            <div class="card-body">
+                <h6>Modbus TCP</h6>
+                <ul>
+                    <li>默认端口: 502</li>
+                    <li>从站ID: 1-247</li>
+                    <li>寄存器地址: 0-65535</li>
+                </ul>
+
+                <h6>Siemens S7</h6>
+                <ul>
+                    <li>默认端口: 102</li>
+                    <li>Rack/Slot: 根据PLC配置</li>
+                    <li>数据区域: DB, I, Q, M</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="message-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let registerCount = {{ device.registers|length if device and device.registers else 0 }};
+let areaCount = {{ device.areas|length if device and device.areas else 0 }};
+
+function toggleDeviceFields() {
+    const type = document.querySelector('[name="device_type"]').value;
+    document.getElementById('modbus-fields').style.display = type === 'modbus_tcp' ? 'block' : 'none';
+    document.getElementById('s7-fields').style.display = type === 's7' ? 'block' : 'none';
+}
+
+function addRegister() {
+    registerCount++;
+    const html = `
+        <div class="card mb-2" id="register-${registerCount}">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-2">
+                        <input type="text" class="form-control form-control-sm" placeholder="名称" name="reg_name_${registerCount}">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" class="form-control form-control-sm" placeholder="地址" name="reg_address_${registerCount}">
+                    </div>
+                    <div class="col-md-1">
+                        <input type="number" class="form-control form-control-sm" placeholder="数量" name="reg_count_${registerCount}" value="1">
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select form-select-sm" name="reg_data_type_${registerCount}">
+                            <option value="uint16">UINT16</option>
+                            <option value="int16">INT16</option>
+                            <option value="uint32">UINT32</option>
+                            <option value="int32">INT32</option>
+                            <option value="float32">FLOAT32</option>
+                            <option value="float64">FLOAT64</option>
+                            <option value="bool">BOOL</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <input type="number" class="form-control form-control-sm" placeholder="比例" name="reg_scale_${registerCount}" value="1" step="0.01">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" class="form-control form-control-sm" placeholder="单位" name="reg_unit_${registerCount}">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRegister(${registerCount})">删除</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.getElementById('registers-list').insertAdjacentHTML('beforeend', html);
+}
+
+function removeRegister(id) {
+    document.getElementById(`register-${id}`).remove();
+}
+
+function addArea() {
+    areaCount++;
+    const html = `
+        <div class="card mb-2" id="area-${areaCount}">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-2">
+                        <input type="text" class="form-control form-control-sm" placeholder="名称" name="area_name_${areaCount}">
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select form-select-sm" name="area_type_${areaCount}">
+                            <option value="DB">DB</option>
+                            <option value="I">I</option>
+                            <option value="Q">Q</option>
+                            <option value="M">M</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" class="form-control form-control-sm" placeholder="DB号" name="area_db_${areaCount}" value="0">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" class="form-control form-control-sm" placeholder="起始地址" name="area_start_${areaCount}">
+                    </div>
+                    <div class="col-md-1">
+                        <input type="number" class="form-control form-control-sm" placeholder="大小" name="area_size_${areaCount}">
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select form-select-sm" name="area_data_type_${areaCount}">
+                            <option value="float32">FLOAT32</option>
+                            <option value="int16">INT16</option>
+                            <option value="uint16">UINT16</option>
+                            <option value="int32">INT32</option>
+                            <option value="uint32">UINT32</option>
+                            <option value="bool">BOOL</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeArea(${areaCount})">删除</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.getElementById('areas-list').insertAdjacentHTML('beforeend', html);
+}
+
+function removeArea(id) {
+    document.getElementById(`area-${id}`).remove();
+}
+
+async function saveDevice() {
+    const form = document.getElementById('deviceForm');
+    const formData = new FormData(form);
+
+    // FormData skips disabled elements, so read device_type from the select directly
+    const deviceTypeSelect = form.querySelector('[name="device_type"]');
+    const deviceType = deviceTypeSelect ? deviceTypeSelect.value : formData.get('device_type');
+
+    const device = {
+        name: formData.get('name'),
+        device_type: deviceType,
+        host: formData.get('host'),
+        port: parseInt(formData.get('port')),
+        enabled: formData.get('enabled') === 'on',
+        slave_id: parseInt(formData.get('slave_id') || '1'),
+        rack: parseInt(formData.get('rack') || '0'),
+        slot: parseInt(formData.get('slot') || '1'),
+        registers: [],
+        areas: []
+    };
+
+    // Collect registers
+    const registerDivs = document.querySelectorAll('[id^="register-"]');
+    registerDivs.forEach(div => {
+        const id = div.id.split('-')[1];
+        const reg = {
+            name: formData.get(`reg_name_${id}`),
+            address: parseInt(formData.get(`reg_address_${id}`)),
+            count: parseInt(formData.get(`reg_count_${id}`)),
+            data_type: formData.get(`reg_data_type_${id}`),
+            scale: parseFloat(formData.get(`reg_scale_${id}`)),
+            unit: formData.get(`reg_unit_${id}`) || ''
+        };
+        if (reg.name && !isNaN(reg.address)) {
+            device.registers.push(reg);
+        }
+    });
+
+    // Collect areas
+    const areaDivs = document.querySelectorAll('[id^="area-"]');
+    areaDivs.forEach(div => {
+        const id = div.id.split('-')[1];
+        const area = {
+            name: formData.get(`area_name_${id}`),
+            area: formData.get(`area_type_${id}`),
+            db_number: parseInt(formData.get(`area_db_${id}`)),
+            start: parseInt(formData.get(`area_start_${id}`)),
+            size: parseInt(formData.get(`area_size_${id}`)),
+            data_type: formData.get(`area_data_type_${id}`)
+        };
+        if (area.name && !isNaN(area.start)) {
+            device.areas.push(area);
+        }
+    });
+
+    const isEdit = {{ 'true' if device else 'false' }};
+    const url = isEdit ? `/api/devices/${device.name}` : '/api/devices';
+    const method = isEdit ? 'PUT' : 'POST';
+
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(device)
+        });
+
+        if (response.ok) {
+            showMessage(isEdit ? '设备已更新' : '设备已添加', 'success');
+            setTimeout(() => window.location.href = '/devices', 1000);
+        } else {
+            const error = await response.json();
+            showMessage(formatError(error.detail) || '保存失败', 'danger');
+        }
+    } catch (error) {
+        showMessage('请求失败: ' + error.message, 'danger');
+    }
+}
+
+toggleDeviceFields();
+</script>
+{% endblock %}

@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}仪表盘 - 工业数据采集系统{% endblock %}
+{% block page_title %}仪表盘{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5 class="card-title">设备总数</h5>
+                <h2 class="card-text">{{ config.devices|length }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h5 class="card-title">在线设备</h5>
+                <h2 class="card-text" id="online-count">-</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h5 class="card-title">采集计划</h5>
+                <h2 class="card-text">{{ config.schedules|length }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card {% if config.ftp.enabled %}bg-success{% else %}bg-secondary{% endif %} text-white">
+            <div class="card-body">
+                <h5 class="card-title">FTP状态</h5>
+                <h2 class="card-text">{% if config.ftp.enabled %}已启用{% else %}未启用{% endif %}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">设备状态</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>设备名称</th>
+                            <th>类型</th>
+                            <th>地址</th>
+                            <th>状态</th>
+                            <th>最后采集</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for device in config.devices %}
+                        <tr id="device-row-{{ device.name }}">
+                            <td>{{ device.name }}</td>
+                            <td>{{ device.device_type.value }}</td>
+                            <td>{{ device.host }}:{{ device.port }}</td>
+                            <td>
+                                <span class="status-dot status-offline" id="status-dot-{{ device.name }}"></span>
+                                <span id="status-text-{{ device.name }}">离线</span>
+                            </td>
+                            <td id="last-poll-{{ device.name }}">-</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">最近数据</h5>
+            </div>
+            <div class="card-body">
+                <div id="recent-data">
+                    <p class="text-muted">暂无数据</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">FTP上传状态</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>服务器:</strong> {{ config.ftp.host or '未配置' }}</p>
+                <p><strong>状态:</strong> <span id="ftp-running">{% if config.ftp.enabled %}已启用{% else %}未启用{% endif %}</span></p>
+                <p><strong>待上传:</strong> <span id="ftp-pending">-</span> 个文件</p>
+                <p><strong>上次上传:</strong> <span id="ftp-last-time">-</span></p>
+                <p><strong>累计上传:</strong> <span id="ftp-total">0</span> 次</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadStatus() {
+    try {
+        const response = await fetch('/api/status');
+        const data = await response.json();
+        document.getElementById('online-count').textContent = data.devices.online || 0;
+    } catch (error) {
+        console.error('Error loading status:', error);
+    }
+}
+
+async function loadDeviceStatus() {
+    try {
+        const response = await fetch('/api/device-status');
+        const statuses = await response.json();
+
+        for (const [name, status] of Object.entries(statuses)) {
+            const dot = document.getElementById(`status-dot-${name}`);
+            const text = document.getElementById(`status-text-${name}`);
+            const lastPoll = document.getElementById(`last-poll-${name}`);
+
+            if (!dot) continue;
+
+            if (status.online) {
+                dot.className = 'status-dot status-online';
+                text.textContent = '在线';
+            } else {
+                dot.className = 'status-dot status-offline';
+                text.textContent = status.consecutive_failures > 0 ? '离线' : '未采集';
+            }
+
+            if (lastPoll && status.last_success) {
+                lastPoll.textContent = status.last_success.replace('T', ' ').substring(0, 19);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading device status:', error);
+    }
+}
+
+async function loadFtpStatus() {
+    try {
+        const response = await fetch('/api/ftp/status');
+        const data = await response.json();
+
+        const running = document.getElementById('ftp-running');
+        if (data.running) {
+            running.textContent = '运行中';
+            running.style.color = '#28a745';
+        }
+
+        document.getElementById('ftp-pending').textContent = data.pending_files || 0;
+        document.getElementById('ftp-total').textContent = data.total_uploads || 0;
+
+        if (data.last_upload_time) {
+            document.getElementById('ftp-last-time').textContent = data.last_upload_time;
+        }
+    } catch (error) {
+        console.error('Error loading FTP status:', error);
+    }
+}
+
+loadStatus();
+loadDeviceStatus();
+loadFtpStatus();
+setInterval(loadStatus, 5000);
+setInterval(loadDeviceStatus, 5000);
+setInterval(loadFtpStatus, 10000);
+</script>
+{% endblock %}

@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}采集计划 - 工业数据采集系统{% endblock %}
+{% block page_title %}采集计划管理{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>采集计划列表</h4>
+    <button class="btn btn-primary" onclick="showAddModal()">
+        <i class="bi bi-plus-lg"></i> 添加计划
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>设备名称</th>
+                    <th>采集间隔(秒)</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="schedule-list">
+                {% for schedule in config.schedules %}
+                <tr id="schedule-{{ schedule.device_name }}">
+                    <td>{{ schedule.device_name }}</td>
+                    <td>{{ schedule.interval_seconds }}</td>
+                    <td>
+                        <span class="badge {% if schedule.enabled %}bg-success{% else %}bg-secondary{% endif %}">
+                            {% if schedule.enabled %}已启用{% else %}已禁用{% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="editSchedule('{{ schedule.device_name }}', {{ schedule.interval_seconds }}, {{ schedule.enabled|lower }})">编辑</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteSchedule('{{ schedule.device_name }}')">删除</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add/Edit Schedule Modal -->
+<div class="modal fade" id="scheduleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">添加采集计划</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="scheduleForm">
+                    <div class="mb-3">
+                        <label class="form-label">设备名称</label>
+                        <select class="form-select" name="device_name" id="deviceSelect" required>
+                            {% for device in config.devices %}
+                            <option value="{{ device.name }}">{{ device.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">采集间隔(秒)</label>
+                        <input type="number" class="form-control" name="interval_seconds" value="10" min="1" required>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="enabled" checked>
+                        <label class="form-check-label">启用计划</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveSchedule()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="message-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showAddModal() {
+    document.getElementById('modalTitle').textContent = '添加采集计划';
+    document.getElementById('scheduleForm').reset();
+    document.getElementById('deviceSelect').disabled = false;
+    new bootstrap.Modal(document.getElementById('scheduleModal')).show();
+}
+
+function editSchedule(deviceName, interval, enabled) {
+    document.getElementById('modalTitle').textContent = '编辑采集计划';
+    document.getElementById('deviceSelect').value = deviceName;
+    document.getElementById('deviceSelect').disabled = true;
+    document.querySelector('[name="interval_seconds"]').value = interval;
+    document.querySelector('[name="enabled"]').checked = enabled;
+    new bootstrap.Modal(document.getElementById('scheduleModal')).show();
+}
+
+async function saveSchedule() {
+    const form = document.getElementById('scheduleForm');
+    const formData = new FormData(form);
+
+    // FormData skips disabled elements, read directly from DOM
+    const deviceSelect = document.getElementById('deviceSelect');
+    const schedule = {
+        device_name: deviceSelect.value,
+        interval_seconds: parseInt(formData.get('interval_seconds')),
+        enabled: formData.get('enabled') === 'on'
+    };
+
+    try {
+        const response = await fetch('/api/schedules', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(schedule)
+        });
+
+        if (response.ok) {
+            showMessage('计划保存成功', 'success');
+            location.reload();
+        } else {
+            const error = await response.json();
+            showMessage(formatError(error.detail) || '保存失败', 'danger');
+        }
+    } catch (error) {
+        showMessage('请求失败: ' + error.message, 'danger');
+    }
+}
+
+async function deleteSchedule(deviceName) {
+    if (!confirm(`确定要删除设备 ${deviceName} 的采集计划吗？`)) return;
+
+    try {
+        const response = await fetch(`/api/schedules/${deviceName}`, { method: 'DELETE' });
+        if (response.ok) {
+            showMessage('计划已删除', 'success');
+            document.getElementById(`schedule-${deviceName}`).remove();
+        } else {
+            showMessage('删除失败', 'danger');
+        }
+    } catch (error) {
+        showMessage('请求失败: ' + error.message, 'danger');
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+
+{% block title %}设备管理 - 工业数据采集系统{% endblock %}
+{% block page_title %}设备管理{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>设备列表</h4>
+    <button class="btn btn-primary" onclick="showAddModal()">
+        <i class="bi bi-plus-lg"></i> 添加设备
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover" id="device-table">
+            <thead>
+                <tr>
+                    <th>设备名称</th>
+                    <th>类型</th>
+                    <th>地址</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="device-list">
+                {% for device in config.devices %}
+                <tr id="device-{{ device.name }}">
+                    <td>{{ device.name }}</td>
+                    <td>{{ device.device_type.value }}</td>
+                    <td>{{ device.host }}:{{ device.port }}</td>
+                    <td>
+                        <span class="status-dot {% if device.enabled %}status-online{% else %}status-offline{% endif %}"></span>
+                        {% if device.enabled %}已启用{% else %}已禁用{% endif %}
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="testDevice(this, '{{ device.name }}')">测试</button>
+                        <a href="/devices/{{ device.name }}/edit" class="btn btn-sm btn-outline-secondary">编辑</a>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteDevice('{{ device.name }}')">删除</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add/Edit Device Modal -->
+<div class="modal fade" id="deviceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">添加设备</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="deviceForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">设备名称</label>
+                            <input type="text" class="form-control" name="name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">设备类型</label>
+                            <select class="form-select" name="device_type" onchange="toggleDeviceFields()">
+                                <option value="modbus_tcp">Modbus TCP</option>
+                                <option value="s7">Siemens S7</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">主机地址</label>
+                            <input type="text" class="form-control" name="host" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">端口</label>
+                            <input type="number" class="form-control" name="port" value="502">
+                        </div>
+                    </div>
+
+                    <!-- Modbus specific fields -->
+                    <div id="modbus-fields">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">从站ID</label>
+                                <input type="number" class="form-control" name="slave_id" value="1">
+                            </div>
+                        </div>
+                        <h6>寄存器配置</h6>
+                        <div id="registers-list">
+                            <!-- Dynamic register fields -->
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addRegister()">
+                            <i class="bi bi-plus"></i> 添加寄存器
+                        </button>
+                    </div>
+
+                    <!-- S7 specific fields -->
+                    <div id="s7-fields" style="display: none;">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Rack</label>
+                                <input type="number" class="form-control" name="rack" value="0">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Slot</label>
+                                <input type="number" class="form-control" name="slot" value="1">
+                            </div>
+                        </div>
+                        <h6>数据区域配置</h6>
+                        <div id="areas-list">
+                            <!-- Dynamic area fields -->
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addArea()">
+                            <i class="bi bi-plus"></i> 添加数据区域
+                        </button>
+                    </div>
+
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" name="enabled" checked>
+                        <label class="form-check-label">启用设备</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveDevice()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="message-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>
+
+<!-- Protocol Log Modal -->
+<div class="modal fade" id="logModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="logModalTitle">连接测试结果</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="logModalBody" style="font-family: monospace; font-size: 13px; background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 5px; white-space: pre-wrap; max-height: 400px; overflow-y: auto;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let registerCount = 0;
+let areaCount = 0;
+
+function showAddModal() {
+    document.getElementById('modalTitle').textContent = '添加设备';
+    document.getElementById('deviceForm').reset();
+    document.getElementById('registers-list').innerHTML = '';
+    document.getElementById('areas-list').innerHTML = '';
+    registerCount = 0;
+    areaCount = 0;
+    new bootstrap.Modal(document.getElementById('deviceModal')).show();
+}
+
+function toggleDeviceFields() {
+    const type = document.querySelector('[name="device_type"]').value;
+    document.getElementById('modbus-fields').style.display = type === 'modbus_tcp' ? 'block' : 'none';
+    document.getElementById('s7-fields').style.display = type === 's7' ? 'block' : 'none';
+}
+
+function addRegister() {
+    registerCount++;
+    const html = `
+        <div class="card mb-2" id="register-${registerCount}">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-2">
+                        <input type="text" class="form-control form-control-sm" placeholder="名称" name="reg_name_${registerCount}">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" class="form-control form-control-sm" placeholder="地址" name="reg_address_${registerCount}">
+                    </div>
+                    <div class="col-md-1">
+                        <input type="number" class="form-control form-control-sm" placeholder="数量" name="reg_count_${registerCount}" value="1">
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select form-select-sm" name="reg_data_type_${registerCount}">
+                            <option value="uint16">UINT16</option>
+                            <option value="int16">INT16</option>
+                            <option value="uint32">UINT32</option>
+                            <option value="int32">INT32</option>
+                            <option value="float32">FLOAT32</option>
+                            <option value="float64">FLOAT64</option>
+                            <option value="bool">BOOL</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <input type="number" class="form-control form-control-sm" placeholder="比例" name="reg_scale_${registerCount}" value="1" step="0.01">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" class="form-control form-control-sm" placeholder="单位" name="reg_unit_${registerCount}">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRegister(${registerCount})">删除</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.getElementById('registers-list').insertAdjacentHTML('beforeend', html);
+}
+
+function removeRegister(id) {
+    document.getElementById(`register-${id}`).remove();
+}
+
+function addArea() {
+    areaCount++;
+    const html = `
+        <div class="card mb-2" id="area-${areaCount}">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-2">
+                        <input type="text" class="form-control form-control-sm" placeholder="名称" name="area_name_${areaCount}">
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select form-select-sm" name="area_type_${areaCount}">
+                            <option value="DB">DB</option>
+                            <option value="I">I</option>
+                            <option value="Q">Q</option>
+                            <option value="M">M</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" class="form-control form-control-sm" placeholder="DB号" name="area_db_${areaCount}" value="0">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" class="form-control form-control-sm" placeholder="起始地址" name="area_start_${areaCount}">
+                    </div>
+                    <div class="col-md-1">
+                        <input type="number" class="form-control form-control-sm" placeholder="大小" name="area_size_${areaCount}">
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select form-select-sm" name="area_data_type_${areaCount}">
+                            <option value="float32">FLOAT32</option>
+                            <option value="int16">INT16</option>
+                            <option value="uint16">UINT16</option>
+                            <option value="int32">INT32</option>
+                            <option value="uint32">UINT32</option>
+                            <option value="bool">BOOL</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeArea(${areaCount})">删除</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.getElementById('areas-list').insertAdjacentHTML('beforeend', html);
+}
+
+function removeArea(id) {
+    document.getElementById(`area-${id}`).remove();
+}
+
+async function saveDevice() {
+    const form = document.getElementById('deviceForm');
+    const formData = new FormData(form);
+
+    const device = {
+        name: formData.get('name'),
+        device_type: formData.get('device_type'),
+        host: formData.get('host'),
+        port: parseInt(formData.get('port')),
+        enabled: formData.get('enabled') === 'on',
+        slave_id: parseInt(formData.get('slave_id') || '1'),
+        rack: parseInt(formData.get('rack') || '0'),
+        slot: parseInt(formData.get('slot') || '1'),
+        registers: [],
+        areas: []
+    };
+
+    // Collect registers
+    const registerDivs = document.querySelectorAll('[id^="register-"]');
+    registerDivs.forEach(div => {
+        const id = div.id.split('-')[1];
+        const reg = {
+            name: formData.get(`reg_name_${id}`),
+            address: parseInt(formData.get(`reg_address_${id}`)),
+            count: parseInt(formData.get(`reg_count_${id}`)),
+            data_type: formData.get(`reg_data_type_${id}`),
+            scale: parseFloat(formData.get(`reg_scale_${id}`)),
+            unit: formData.get(`reg_unit_${id}`) || ''
+        };
+        if (reg.name && !isNaN(reg.address)) {
+            device.registers.push(reg);
+        }
+    });
+
+    // Collect areas
+    const areaDivs = document.querySelectorAll('[id^="area-"]');
+    areaDivs.forEach(div => {
+        const id = div.id.split('-')[1];
+        const area = {
+            name: formData.get(`area_name_${id}`),
+            area: formData.get(`area_type_${id}`),
+            db_number: parseInt(formData.get(`area_db_${id}`)),
+            start: parseInt(formData.get(`area_start_${id}`)),
+            size: parseInt(formData.get(`area_size_${id}`)),
+            data_type: formData.get(`area_data_type_${id}`)
+        };
+        if (area.name && !isNaN(area.start)) {
+            device.areas.push(area);
+        }
+    });
+
+    try {
+        const response = await fetch('/api/devices', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(device)
+        });
+
+        if (response.ok) {
+            showMessage('设备添加成功', 'success');
+            location.reload();
+        } else {
+            const error = await response.json();
+            showMessage(formatError(error.detail) || '添加失败', 'danger');
+        }
+    } catch (error) {
+        showMessage('请求失败: ' + error.message, 'danger');
+    }
+}
+
+async function testDevice(btnEl, name) {
+    btnEl.disabled = true;
+    const originalText = btnEl.textContent;
+    btnEl.textContent = '测试中...';
+
+    try {
+        const response = await fetch(`/api/devices/${name}/test`, { method: 'POST' });
+        const result = await response.json();
+
+        // Show protocol logs in modal
+        document.getElementById('logModalTitle').textContent = `连接测试: ${name}`;
+        const logBody = document.getElementById('logModalBody');
+        if (result.logs) {
+            logBody.textContent = result.logs;
+        } else {
+            logBody.textContent = result.message || '无日志';
+        }
+
+        // Color the status line
+        const statusClass = result.status === 'success' ? 'color: #4ec9b0' : 'color: #f48771';
+        logBody.innerHTML = logBody.textContent.split('\n').map(line => {
+            if (line.includes('✓')) return `<span style="color: #4ec9b0">${line}</span>`;
+            if (line.includes('✗')) return `<span style="color: #f48771">${line}</span>`;
+            if (line.includes('→')) return `<span style="color: #cca700">${line}</span>`;
+            if (line.includes('TX')) return `<span style="color: #569cd6">${line}</span>`;
+            if (line.includes('RX')) return `<span style="color: #ce9178">${line}</span>`;
+            return line;
+        }).join('\n');
+
+        new bootstrap.Modal(document.getElementById('logModal')).show();
+        showMessage(result.message, result.status === 'success' ? 'success' : 'danger');
+    } catch (error) {
+        showMessage('测试失败: ' + error.message, 'danger');
+    } finally {
+        btnEl.disabled = false;
+        btnEl.textContent = originalText;
+    }
+}
+
+async function deleteDevice(name) {
+    if (!confirm(`确定要删除设备 ${name} 吗？`)) return;
+
+    try {
+        const response = await fetch(`/api/devices/${name}`, { method: 'DELETE' });
+        if (response.ok) {
+            showMessage('设备已删除', 'success');
+            document.getElementById(`device-${name}`).remove();
+        } else {
+            showMessage('删除失败', 'danger');
+        }
+    } catch (error) {
+        showMessage('请求失败: ' + error.message, 'danger');
+    }
+}
+
+toggleDeviceFields();
+</script>
+{% endblock %}

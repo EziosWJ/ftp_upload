@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}FTP配置 - 工业数据采集系统{% endblock %}
+{% block page_title %}FTP服务器配置{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">FTP服务器设置</h5>
+            </div>
+            <div class="card-body">
+                <form id="ftpForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">服务器地址</label>
+                            <input type="text" class="form-control" name="host" value="{{ config.ftp.host }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">端口</label>
+                            <input type="number" class="form-control" name="port" value="{{ config.ftp.port }}">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">用户名</label>
+                            <input type="text" class="form-control" name="username" value="{{ config.ftp.username }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">密码</label>
+                            <input type="password" class="form-control" name="password" value="{{ config.ftp.password }}">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">远程目录</label>
+                            <input type="text" class="form-control" name="remote_dir" value="{{ config.ftp.remote_dir }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">上传间隔(秒)</label>
+                            <input type="number" class="form-control" name="upload_interval_seconds" value="{{ config.ftp.upload_interval_seconds }}" min="60">
+                        </div>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="enabled" {% if config.ftp.enabled %}checked{% endif %}>
+                        <label class="form-check-label">启用FTP上传</label>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-primary" onclick="saveFtpConfig()">保存配置</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="testFtpConnection()">测试连接</button>
+                        <button type="button" class="btn btn-success" onclick="uploadNow()">立即上传</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">上传状态</h5>
+            </div>
+            <div class="card-body">
+                <div id="upload-status">
+                    <p><strong>运行状态:</strong> <span id="ftp-runner">-</span></p>
+                    <p><strong>待上传文件:</strong> <span id="ftp-pending">-</span></p>
+                    <p><strong>上次上传:</strong> <span id="ftp-last-time">-</span></p>
+                    <p><strong>累计上传:</strong> <span id="ftp-total">0</span> 次</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">上传历史</h5>
+            </div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                <div id="upload-history">
+                    <p class="text-muted">暂无上传记录</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="message-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function saveFtpConfig() {
+    const form = document.getElementById('ftpForm');
+    const formData = new FormData(form);
+
+    const config = {
+        host: formData.get('host'),
+        port: parseInt(formData.get('port')),
+        username: formData.get('username'),
+        password: formData.get('password'),
+        remote_dir: formData.get('remote_dir'),
+        upload_interval_seconds: parseInt(formData.get('upload_interval_seconds')),
+        enabled: formData.get('enabled') === 'on'
+    };
+
+    try {
+        const response = await fetch('/api/ftp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
+
+        if (response.ok) {
+            showMessage('FTP配置已保存', 'success');
+        } else {
+            const error = await response.json();
+            showMessage(formatError(error.detail) || '保存失败', 'danger');
+        }
+    } catch (error) {
+        showMessage('请求失败: ' + error.message, 'danger');
+    }
+}
+
+async function testFtpConnection() {
+    try {
+        const response = await fetch('/api/ftp/test', { method: 'POST' });
+        const result = await response.json();
+        showMessage(result.message, result.status === 'success' ? 'success' : 'danger');
+    } catch (error) {
+        showMessage('测试失败: ' + error.message, 'danger');
+    }
+}
+
+async function uploadNow() {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '上传中...';
+    try {
+        const response = await fetch('/api/ftp/upload-now', { method: 'POST' });
+        const result = await response.json();
+        showMessage(result.message, result.status === 'success' ? 'success' : 'danger');
+        loadFtpStatus();
+    } catch (error) {
+        showMessage('上传失败: ' + error.message, 'danger');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '立即上传';
+    }
+}
+
+async function loadFtpStatus() {
+    try {
+        const response = await fetch('/api/ftp/status');
+        const data = await response.json();
+
+        // Update status
+        const runner = document.getElementById('ftp-runner');
+        if (data.running) {
+            runner.innerHTML = '<span style="color: #28a745;">● 运行中</span>';
+        } else {
+            runner.innerHTML = '<span style="color: #dc3545;">● 已停止</span>';
+        }
+
+        document.getElementById('ftp-pending').textContent = data.pending_files || 0;
+        document.getElementById('ftp-total').textContent = data.total_uploads || 0;
+        if (data.last_upload_time) {
+            document.getElementById('ftp-last-time').textContent = data.last_upload_time;
+        }
+
+        // Update history
+        const historyEl = document.getElementById('upload-history');
+        if (data.history && data.history.length > 0) {
+            historyEl.innerHTML = data.history.reverse().map(item => {
+                const statusColor = item.status === 'success' ? '#28a745' : '#dc3545';
+                const size = item.size ? ` (${(item.size / 1024).toFixed(1)}KB)` : '';
+                return `<div style="margin-bottom: 6px; font-size: 13px;">
+                    <span style="color: #569cd6;">${item.time}</span>
+                    <span style="color: ${statusColor};">${item.status === 'success' ? '✓' : '✗'}</span>
+                    <span>${item.file}${size}</span>
+                </div>`;
+            }).join('');
+        }
+    } catch (error) {
+        console.error('Error loading FTP status:', error);
+    }
+}
+
+loadFtpStatus();
+setInterval(loadFtpStatus, 5000);
+</script>
+{% endblock %}

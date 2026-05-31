@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}系统日志 - 工业数据采集系统{% endblock %}
+{% block page_title %}系统日志{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>系统日志</h4>
+    <div class="d-flex gap-2">
+        <select class="form-select" id="logLevel" onchange="loadLogs()" style="width: 150px;">
+            <option value="INFO">INFO</option>
+            <option value="WARNING">WARNING</option>
+            <option value="ERROR">ERROR</option>
+        </select>
+        <button class="btn btn-outline-secondary" onclick="loadLogs()">
+            <i class="bi bi-arrow-clockwise"></i> 刷新
+        </button>
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="autoRefresh" checked onchange="toggleAutoRefresh()">
+            <label class="form-check-label">自动刷新</label>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div id="log-container" style="height: 600px; overflow-y: auto; font-family: monospace; font-size: 14px; background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 5px;">
+            <div id="log-content">
+                <p class="text-muted">正在加载日志...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <button class="btn btn-danger" onclick="clearLogs()">清空日志</button>
+    <button class="btn btn-outline-primary" onclick="downloadLogs()">下载日志</button>
+</div>
+
+<div id="message-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let autoRefreshInterval = null;
+
+async function loadLogs() {
+    const level = document.getElementById('logLevel').value;
+    const container = document.getElementById('log-content');
+
+    try {
+        const response = await fetch(`/api/logs?level=${level}&limit=100`);
+        if (!response.ok) {
+            container.innerHTML = `<p style="color: #f48771;">服务器返回错误 (${response.status})</p>`;
+            return;
+        }
+        const data = await response.json();
+
+        if (data.logs && data.logs.length > 0) {
+            container.innerHTML = data.logs.map(line => {
+                // Parse log line: "2026-05-31 12:00:00,123 [module] LEVEL: message"
+                const m = line.match(/^(\d[\d:,\s-]+)\s+\[([^\]]+)\]\s+(INFO|WARNING|ERROR|CRITICAL|DEBUG):\s+(.*)$/);
+                let color = '#d4d4d4';
+                if (m) {
+                    const lv = m[3];
+                    if (lv === 'ERROR' || lv === 'CRITICAL') color = '#f48771';
+                    else if (lv === 'WARNING') color = '#cca700';
+                    else if (lv === 'INFO') color = '#4ec9b0';
+                    else if (lv === 'DEBUG') color = '#808080';
+                    return `<div style="margin-bottom: 3px;">
+                        <span style="color: #569cd6;">${m[1]}</span>
+                        <span style="color: ${color};">[${m[3]}]</span>
+                        <span style="color: #ce9178;">${m[2]}</span>
+                        <span>${m[4]}</span>
+                    </div>`;
+                }
+                return `<div style="margin-bottom: 3px;">${line}</div>`;
+            }).join('');
+        } else {
+            container.innerHTML = '<p class="text-muted">暂无日志记录</p>';
+        }
+
+        // Auto scroll to bottom
+        const logContainer = document.getElementById('log-container');
+        logContainer.scrollTop = logContainer.scrollHeight;
+    } catch (error) {
+        container.innerHTML = `<p style="color: #f48771;">加载日志失败: ${error.message}</p>`;
+    }
+}
+
+function toggleAutoRefresh() {
+    const checkbox = document.getElementById('autoRefresh');
+    if (checkbox.checked) {
+        autoRefreshInterval = setInterval(loadLogs, 5000);
+    } else {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
+    }
+}
+
+async function clearLogs() {
+    if (!confirm('确定要清空所有日志吗？')) return;
+    showMessage('日志清空功能待实现', 'warning');
+}
+
+async function downloadLogs() {
+    showMessage('日志下载功能待实现', 'warning');
+}
+
+// Initial load
+loadLogs();
+toggleAutoRefresh();
+</script>
+{% endblock %}
