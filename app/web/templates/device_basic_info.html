@@ -53,18 +53,22 @@
             </div>
             <div class="modal-body">
                 <form id="deviceForm">
-                    <!-- Device Basic Info -->
                     <h6 class="mb-3 border-bottom pb-2">设备基本信息</h6>
                     <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">设备名称</label>
+                            <input type="text" class="form-control" name="name" required placeholder="请输入设备名称">
+                        </div>
                         <div class="col-md-6">
                             <label class="form-label">设备编码</label>
                             <input type="text" class="form-control" name="device_code" placeholder="请输入设备编码">
                         </div>
+                    </div>
+                    <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">规格型号</label>
                             <input type="text" class="form-control" name="spec_model" placeholder="请输入规格型号">
                         </div>
-                    </div>
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">设备类别</label>
@@ -154,10 +158,6 @@ function showAddModal() {
     editingIndex = null;
     document.getElementById('modalTitle').textContent = '添加设备';
     document.getElementById('deviceForm').reset();
-    document.getElementById('registers-tbody').innerHTML = '';
-    document.getElementById('areas-tbody').innerHTML = '';
-    registerCount = 0;
-    areaCount = 0;
     new bootstrap.Modal(document.getElementById('deviceModal')).show();
 }
 
@@ -167,6 +167,8 @@ function editDevice(index) {
     document.getElementById('modalTitle').textContent = '编辑设备';
     
     const form = document.getElementById('deviceForm');
+    form.name.value = device.name;
+    form.enabled.checked = device.enabled;
     
     // Basic info
     form.device_code.value = device.device_code || '';
@@ -192,7 +194,7 @@ async function saveDevice() {
     const formData = new FormData(form);
     
     const device = {
-        name: formData.get('device_code') || 'device_' + Date.now(),
+        name: formData.get('name'),
         device_type: 'modbus_tcp',
         host: '127.0.0.1',
         port: 502,
@@ -200,7 +202,7 @@ async function saveDevice() {
         registers: [],
         areas: [],
         device_code: formData.get('device_code') || '',
-        device_name: formData.get('device_code') || '',
+        device_name: formData.get('name'),
         spec_model: formData.get('spec_model') || '',
         device_category: formData.get('device_category') || '',
         production_date: formData.get('production_date') || '',
