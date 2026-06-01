@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}{% if device %}编辑设备{% else %}添加设备{% endif %} - 工业数据采集系统{% endblock %}
-{% block page_title %}{% if device %}编辑设备: {{ device.name }}{% else %}添加设备{% endif %}{% endblock %}
+{% block title %}{% if device %}编辑测点{% else %}添加测点{% endif %} - 工业数据采集系统{% endblock %}
+{% block page_title %}{% if device %}编辑测点: {{ device.name }}{% else %}添加测点{% endif %}{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-md-8">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">{% if device %}编辑设备{% else %}添加新设备{% endif %}</h5>
+                <h5 class="mb-0">{% if device %}编辑测点{% else %}添加新测点{% endif %}</h5>
             </div>
             <div class="card-body">
                 <form id="deviceForm">
@@ -160,7 +160,7 @@
 
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-primary" onclick="saveDevice()">
-                            {% if device %}保存修改{% else %}添加设备{% endif %}
+                            {% if device %}保存修改{% else %}添加测点{% endif %}
                         </button>
                         <a href="/devices" class="btn btn-secondary">取消</a>
                     </div>
