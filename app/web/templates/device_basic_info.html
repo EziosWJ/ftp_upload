@@ -1,128 +1,227 @@
 {% extends "base.html" %}
 
-{% block title %}设备基本信息配置 - 工业数据采集系统{% endblock %}
-{% block page_title %}设备基本信息配置{% endblock %}
+{% block title %}设备基本信息 - 工业数据采集系统{% endblock %}
+{% block page_title %}设备基本信息{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">设备基本信息配置</h5>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>设备列表</h4>
+    <button class="btn btn-primary" onclick="showAddModal()">
+        <i class="bi bi-plus-lg"></i> 添加设备
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover" id="device-table">
+            <thead>
+                <tr>
+                    <th>设备名称</th>
+                    <th>设备编码</th>
+                    <th>规格型号</th>
+                    <th>设备类别</th>
+                    <th>生产厂家</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="device-list">
+                {% for device in config.devices %}
+                <tr id="device-{{ loop.index }}">
+                    <td>{{ device.device_name or device.name }}</td>
+                    <td>{{ device.device_code }}</td>
+                    <td>{{ device.spec_model }}</td>
+                    <td>{{ device.device_category }}</td>
+                    <td>{{ device.manufacturer }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editDevice({{ loop.index }})">编辑</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteDevice('{{ device.name }}')">删除</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add/Edit Device Modal -->
+<div class="modal fade" id="deviceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">添加设备</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="card-body">
-                <form id="deviceBasicInfoForm">
+            <div class="modal-body">
+                <form id="deviceForm">
+                    <h6 class="mb-3 border-bottom pb-2">基本信息</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">设备名称</label>
+                            <input type="text" class="form-control" name="name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">设备类型</label>
+                            <select class="form-select" name="device_type" onchange="toggleDeviceFields()">
+                                <option value="modbus_tcp">Modbus TCP</option>
+                                <option value="s7">Siemens S7</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">主机地址</label>
+                            <input type="text" class="form-control" name="host" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">端口</label>
+                            <input type="number" class="form-control" name="port" value="502">
+                        </div>
+                    </div>
+
+                    <!-- Device Basic Info -->
+                    <h6 class="mb-3 border-bottom pb-2">设备基本信息</h6>
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">设备编码</label>
-                            <input type="text" class="form-control" name="device_code" value="{{ config.device_basic_info.device_code }}" placeholder="请输入设备编码">
+                            <input type="text" class="form-control" name="device_code" placeholder="请输入设备编码">
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label">设备名称</label>
-                            <input type="text" class="form-control" name="device_name" value="{{ config.device_basic_info.device_name }}" placeholder="请输入设备名称">
-                        </div>
-                    </div>
-                    <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">规格型号</label>
-                            <input type="text" class="form-control" name="spec_model" value="{{ config.device_basic_info.spec_model }}" placeholder="请输入规格型号">
+                            <input type="text" class="form-control" name="spec_model" placeholder="请输入规格型号">
                         </div>
+                    </div>
+                    <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">设备类别</label>
-                            <input type="text" class="form-control" name="device_category" value="{{ config.device_basic_info.device_category }}" placeholder="请输入设备类别">
+                            <input type="text" class="form-control" name="device_category" placeholder="请输入设备类别">
                         </div>
-                    </div>
-                    <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">生产日期</label>
-                            <input type="text" class="form-control" name="production_date" value="{{ config.device_basic_info.production_date }}" placeholder="如：2024-01-01">
+                            <input type="text" class="form-control" name="production_date" placeholder="如：2024-01-01">
                         </div>
+                    </div>
+                    <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">所属系统</label>
-                            <input type="text" class="form-control" name="belonging_system" value="{{ config.device_basic_info.belonging_system }}" placeholder="请输入所属系统">
+                            <input type="text" class="form-control" name="belonging_system" placeholder="请输入所属系统">
                         </div>
-                    </div>
-                    <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">安装日期</label>
-                            <input type="text" class="form-control" name="install_date" value="{{ config.device_basic_info.install_date }}" placeholder="如：2024-01-01">
+                            <input type="text" class="form-control" name="install_date" placeholder="如：2024-01-01">
                         </div>
+                    </div>
+                    <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">安装位置</label>
-                            <input type="text" class="form-control" name="install_location" value="{{ config.device_basic_info.install_location }}" placeholder="请输入安装位置">
+                            <input type="text" class="form-control" name="install_location" placeholder="请输入安装位置">
                         </div>
-                    </div>
-                    <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">生产厂家</label>
-                            <input type="text" class="form-control" name="manufacturer" value="{{ config.device_basic_info.manufacturer }}" placeholder="请输入生产厂家">
+                            <input type="text" class="form-control" name="manufacturer" placeholder="请输入生产厂家">
                         </div>
+                    </div>
+                    <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">出厂编码</label>
-                            <input type="text" class="form-control" name="factory_code" value="{{ config.device_basic_info.factory_code }}" placeholder="请输入出厂编码">
+                            <input type="text" class="form-control" name="factory_code" placeholder="请输入出厂编码">
                         </div>
-                    </div>
-                    <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">安标证书编号</label>
-                            <input type="text" class="form-control" name="safety_cert_no" value="{{ config.device_basic_info.safety_cert_no }}" placeholder="请输入安标证书编号">
+                            <input type="text" class="form-control" name="safety_cert_no" placeholder="请输入安标证书编号">
                         </div>
+                    </div>
+                    <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">防爆证书编号</label>
-                            <input type="text" class="form-control" name="explosion_proof_no" value="{{ config.device_basic_info.explosion_proof_no }}" placeholder="请输入防爆证书编号">
+                            <input type="text" class="form-control" name="explosion_proof_no" placeholder="请输入防爆证书编号">
                         </div>
-                    </div>
-                    <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">额定电压</label>
-                            <input type="text" class="form-control" name="rated_voltage" value="{{ config.device_basic_info.rated_voltage }}" placeholder="如：380V">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">额定电流</label>
-                            <input type="text" class="form-control" name="rated_current" value="{{ config.device_basic_info.rated_current }}" placeholder="如：50A">
+                            <input type="text" class="form-control" name="rated_voltage" placeholder="如：380V">
                         </div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-6">
+                            <label class="form-label">额定电流</label>
+                            <input type="text" class="form-control" name="rated_current" placeholder="如：50A">
+                        </div>
+                        <div class="col-md-6">
                             <label class="form-label">额定功率</label>
-                            <input type="text" class="form-control" name="rated_power" value="{{ config.device_basic_info.rated_power }}" placeholder="如：15kW">
+                            <input type="text" class="form-control" name="rated_power" placeholder="如：15kW">
                         </div>
                     </div>
 
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-primary" onclick="saveDeviceBasicInfo()">
-                            保存配置
+                    <!-- Modbus specific fields -->
+                    <div id="modbus-fields">
+                        <h6 class="mb-3 border-bottom pb-2">Modbus配置</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">从站ID</label>
+                                <input type="number" class="form-control" name="slave_id" value="1">
+                            </div>
+                        </div>
+                        <h6 class="mb-3 border-bottom pb-2">寄存器配置</h6>
+                        <table id="registers-list" class="table table-sm table-bordered mb-3">
+                            <thead>
+                                <tr>
+                                    <th style="width: 15%;">名称</th>
+                                    <th style="width: 15%;">地址</th>
+                                    <th style="width: 10%;">数量</th>
+                                    <th style="width: 15%;">数据类型</th>
+                                    <th style="width: 10%;">比例</th>
+                                    <th style="width: 15%;">单位</th>
+                                    <th style="width: 10%;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="registers-tbody"></tbody>
+                        </table>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addRegister()">
+                            <i class="bi bi-plus"></i> 添加寄存器
                         </button>
+                    </div>
+
+                    <!-- S7 specific fields -->
+                    <div id="s7-fields" style="display: none;">
+                        <h6 class="mb-3 border-bottom pb-2">S7配置</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Rack</label>
+                                <input type="number" class="form-control" name="rack" value="0">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Slot</label>
+                                <input type="number" class="form-control" name="slot" value="1">
+                            </div>
+                        </div>
+                        <h6 class="mb-3 border-bottom pb-2">数据区域配置</h6>
+                        <table id="areas-list" class="table table-sm table-bordered mb-3">
+                            <thead>
+                                <tr>
+                                    <th style="width: 12%;">名称</th>
+                                    <th style="width: 10%;">区域类型</th>
+                                    <th style="width: 10%;">DB号</th>
+                                    <th style="width: 15%;">起始地址</th>
+                                    <th style="width: 10%;">大小</th>
+                                    <th style="width: 15%;">数据类型</th>
+                                    <th style="width: 18%;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="areas-tbody"></tbody>
+                        </table>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addArea()">
+                            <i class="bi bi-plus"></i> 添加数据区域
+                        </button>
+                    </div>
+
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" name="enabled" checked>
+                        <label class="form-check-label">启用设备</label>
                     </div>
                 </form>
             </div>
-        </div>
-    </div>
-
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">帮助信息</h5>
-            </div>
-            <div class="card-body">
-                <h6>设备基本信息说明</h6>
-                <ul>
-                    <li><strong>设备编码</strong>：设备的唯一编码标识</li>
-                    <li><strong>设备名称</strong>：设备的名称</li>
-                    <li><strong>规格型号</strong>：设备的规格型号</li>
-                    <li><strong>设备类别</strong>：设备的分类</li>
-                    <li><strong>生产日期</strong>：设备的生产日期</li>
-                    <li><strong>所属系统</strong>：设备所属的系统</li>
-                    <li><strong>安装日期</strong>：设备的安装日期</li>
-                    <li><strong>安装位置</strong>：设备的安装位置</li>
-                    <li><strong>生产厂家</strong>：设备的生产厂家</li>
-                    <li><strong>出厂编码</strong>：设备出厂时的编码</li>
-                    <li><strong>安标证书编号</strong>：安全标志证书编号</li>
-                    <li><strong>防爆证书编号</strong>：防爆合格证编号</li>
-                    <li><strong>额定电压</strong>：设备的额定电压</li>
-                    <li><strong>额定电流</strong>：设备的额定电流</li>
-                    <li><strong>额定功率</strong>：设备的额定功率</li>
-                </ul>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveDevice()">保存</button>
             </div>
         </div>
     </div>
@@ -133,13 +232,148 @@
 
 {% block scripts %}
 <script>
-async function saveDeviceBasicInfo() {
-    const form = document.getElementById('deviceBasicInfoForm');
-    const formData = new FormData(form);
+let registerCount = 0;
+let areaCount = 0;
+let editingIndex = null;
+const devices = {{ config.devices | tojson }};
 
-    const deviceBasicInfo = {
+function showAddModal() {
+    editingIndex = null;
+    document.getElementById('modalTitle').textContent = '添加设备';
+    document.getElementById('deviceForm').reset();
+    document.getElementById('registers-tbody').innerHTML = '';
+    document.getElementById('areas-tbody').innerHTML = '';
+    registerCount = 0;
+    areaCount = 0;
+    new bootstrap.Modal(document.getElementById('deviceModal')).show();
+}
+
+function editDevice(index) {
+    editingIndex = index;
+    const device = devices[index];
+    document.getElementById('modalTitle').textContent = '编辑设备';
+    
+    const form = document.getElementById('deviceForm');
+    form.name.value = device.name;
+    form.device_type.value = device.device_type;
+    form.host.value = device.host;
+    form.port.value = device.port;
+    form.enabled.checked = device.enabled;
+    form.slave_id.value = device.slave_id || 1;
+    form.rack.value = device.rack || 0;
+    form.slot.value = device.slot || 1;
+    
+    // Basic info
+    form.device_code.value = device.device_code || '';
+    form.spec_model.value = device.spec_model || '';
+    form.device_category.value = device.device_category || '';
+    form.production_date.value = device.production_date || '';
+    form.belonging_system.value = device.belonging_system || '';
+    form.install_date.value = device.install_date || '';
+    form.install_location.value = device.install_location || '';
+    form.manufacturer.value = device.manufacturer || '';
+    form.factory_code.value = device.factory_code || '';
+    form.safety_cert_no.value = device.safety_cert_no || '';
+    form.explosion_proof_no.value = device.explosion_proof_no || '';
+    form.rated_voltage.value = device.rated_voltage || '';
+    form.rated_current.value = device.rated_current || '';
+    form.rated_power.value = device.rated_power || '';
+    
+    toggleDeviceFields();
+    new bootstrap.Modal(document.getElementById('deviceModal')).show();
+}
+
+function toggleDeviceFields() {
+    const type = document.querySelector('[name="device_type"]').value;
+    document.getElementById('modbus-fields').style.display = type === 'modbus_tcp' ? 'block' : 'none';
+    document.getElementById('s7-fields').style.display = type === 's7' ? 'block' : 'none';
+}
+
+function addRegister() {
+    registerCount++;
+    const tbody = document.getElementById('registers-tbody');
+    const tr = document.createElement('tr');
+    tr.id = 'register-' + registerCount;
+    tr.innerHTML = `
+        <td><input type="text" class="form-control form-control-sm" placeholder="名称" name="reg_name_${registerCount}"></td>
+        <td><input type="number" class="form-control form-control-sm" placeholder="地址" name="reg_address_${registerCount}"></td>
+        <td><input type="number" class="form-control form-control-sm" placeholder="数量" name="reg_count_${registerCount}" value="1"></td>
+        <td>
+            <select class="form-select form-select-sm" name="reg_data_type_${registerCount}">
+                <option value="uint16">UINT16</option>
+                <option value="int16">INT16</option>
+                <option value="uint32">UINT32</option>
+                <option value="int32">INT32</option>
+                <option value="float32">FLOAT32</option>
+                <option value="float64">FLOAT64</option>
+                <option value="bool">BOOL</option>
+            </select>
+        </td>
+        <td><input type="number" class="form-control form-control-sm" placeholder="比例" name="reg_scale_${registerCount}" value="1" step="0.01"></td>
+        <td><input type="text" class="form-control form-control-sm" placeholder="单位" name="reg_unit_${registerCount}"></td>
+        <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRegister(${registerCount})">删除</button></td>
+    `;
+    tbody.appendChild(tr);
+}
+
+function removeRegister(id) {
+    document.getElementById('register-' + id).remove();
+}
+
+function addArea() {
+    areaCount++;
+    const tbody = document.getElementById('areas-tbody');
+    const tr = document.createElement('tr');
+    tr.id = 'area-' + areaCount;
+    tr.innerHTML = `
+        <td><input type="text" class="form-control form-control-sm" placeholder="名称" name="area_name_${areaCount}"></td>
+        <td>
+            <select class="form-select form-control-sm" name="area_type_${areaCount}">
+                <option value="DB">DB</option>
+                <option value="I">I</option>
+                <option value="Q">Q</option>
+                <option value="M">M</option>
+            </select>
+        </td>
+        <td><input type="number" class="form-control form-control-sm" placeholder="DB号" name="area_db_${areaCount}" value="1"></td>
+        <td><input type="number" class="form-control form-control-sm" placeholder="起始地址" name="area_start_${areaCount}"></td>
+        <td><input type="number" class="form-control form-control-sm" placeholder="大小" name="area_size_${areaCount}"></td>
+        <td>
+            <select class="form-select form-control-sm" name="area_data_type_${areaCount}">
+                <option value="float32">FLOAT32</option>
+                <option value="int16">INT16</option>
+                <option value="uint16">UINT16</option>
+                <option value="int32">INT32</option>
+                <option value="uint32">UINT32</option>
+                <option value="bool">BOOL</option>
+            </select>
+        </td>
+        <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeArea(${areaCount})">删除</button></td>
+    `;
+    tbody.appendChild(tr);
+}
+
+function removeArea(id) {
+    document.getElementById('area-' + id).remove();
+}
+
+async function saveDevice() {
+    const form = document.getElementById('deviceForm');
+    const formData = new FormData(form);
+    
+    const device = {
+        name: formData.get('name'),
+        device_type: formData.get('device_type'),
+        host: formData.get('host'),
+        port: parseInt(formData.get('port')) || 502,
+        enabled: formData.get('enabled') === 'on',
+        slave_id: parseInt(formData.get('slave_id')) || 1,
+        rack: parseInt(formData.get('rack')) || 0,
+        slot: parseInt(formData.get('slot')) || 1,
+        registers: [],
+        areas: [],
         device_code: formData.get('device_code') || '',
-        device_name: formData.get('device_name') || '',
+        device_name: formData.get('name'),
         spec_model: formData.get('spec_model') || '',
         device_category: formData.get('device_category') || '',
         production_date: formData.get('production_date') || '',
@@ -154,19 +388,76 @@ async function saveDeviceBasicInfo() {
         rated_current: formData.get('rated_current') || '',
         rated_power: formData.get('rated_power') || ''
     };
-
+    
+    // Collect registers
+    for (let i = 1; i <= registerCount; i++) {
+        const regName = formData.get(`reg_name_${i}`);
+        const regAddress = formData.get(`reg_address_${i}`);
+        if (regName && regAddress) {
+            device.registers.push({
+                name: regName,
+                address: parseInt(regAddress),
+                count: parseInt(formData.get(`reg_count_${i}`)) || 1,
+                data_type: formData.get(`reg_data_type_${i}`) || 'uint16',
+                scale: parseFloat(formData.get(`reg_scale_${i}`)) || 1,
+                unit: formData.get(`reg_unit_${i}`) || ''
+            });
+        }
+    }
+    
+    // Collect areas
+    for (let i = 1; i <= areaCount; i++) {
+        const areaName = formData.get(`area_name_${i}`);
+        const areaStart = formData.get(`area_start_${i}`);
+        if (areaName && areaStart) {
+            device.areas.push({
+                name: areaName,
+                area: formData.get(`area_type_${i}`) || 'DB',
+                db_number: parseInt(formData.get(`area_db_${i}`)) || 1,
+                start: parseInt(areaStart),
+                size: parseInt(formData.get(`area_size_${i}`)) || 1,
+                data_type: formData.get(`area_data_type_${i}`) || 'float32'
+            });
+        }
+    }
+    
     try {
-        const response = await fetch('/api/device-basic-info', {
-            method: 'POST',
+        const url = editingIndex !== null ? `/api/devices/${devices[editingIndex].name}` : '/api/devices';
+        const method = editingIndex !== null ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(deviceBasicInfo)
+            body: JSON.stringify(device)
         });
-
+        
         if (response.ok) {
-            showMessage('设备基本信息已保存', 'success');
+            showMessage(editingIndex !== null ? '设备已更新' : '设备已添加', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('deviceModal')).hide();
+            setTimeout(() => location.reload(), 500);
         } else {
             const error = await response.json();
             showMessage(formatError(error.detail) || '保存失败', 'danger');
+        }
+    } catch (error) {
+        showMessage('请求失败: ' + error.message, 'danger');
+    }
+}
+
+async function deleteDevice(name) {
+    if (!confirm(`确定要删除设备 "${name}" 吗？`)) return;
+    
+    try {
+        const response = await fetch(`/api/devices/${name}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            showMessage('设备已删除', 'success');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            const error = await response.json();
+            showMessage(formatError(error.detail) || '删除失败', 'danger');
         }
     } catch (error) {
         showMessage('请求失败: ' + error.message, 'danger');

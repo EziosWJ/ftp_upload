@@ -95,7 +95,7 @@ async def system_info_page(request: Request):
 
 @router.get("/device-basic-info")
 async def device_basic_info_page(request: Request):
-    """Device basic information configuration page."""
+    """Device basic information page with device list."""
     config = load_config()
     return templates.TemplateResponse(
         request, "device_basic_info.html",
