@@ -91,13 +91,3 @@ async def system_info_page(request: Request):
         request, "system_info.html",
         {"config": config, "active_page": "system-info"},
     )
-
-
-@router.get("/device-basic-info")
-async def device_basic_info_page(request: Request):
-    """Device basic information configuration page."""
-    config = load_config()
-    return templates.TemplateResponse(
-        request, "device_basic_info.html",
-        {"config": config, "active_page": "device-basic-info"},
-    )

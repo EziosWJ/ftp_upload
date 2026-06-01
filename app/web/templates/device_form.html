@@ -37,6 +37,79 @@
                         </div>
                     </div>
 
+                    <!-- Device Basic Info -->
+                    <h6 class="mb-3 border-bottom pb-2">设备基本信息</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">设备编码</label>
+                            <input type="text" class="form-control" name="device_code" value="{{ device.device_code if device else '' }}" placeholder="请输入设备编码">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">规格型号</label>
+                            <input type="text" class="form-control" name="spec_model" value="{{ device.spec_model if device else '' }}" placeholder="请输入规格型号">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">设备类别</label>
+                            <input type="text" class="form-control" name="device_category" value="{{ device.device_category if device else '' }}" placeholder="请输入设备类别">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">生产日期</label>
+                            <input type="text" class="form-control" name="production_date" value="{{ device.production_date if device else '' }}" placeholder="如：2024-01-01">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">所属系统</label>
+                            <input type="text" class="form-control" name="belonging_system" value="{{ device.belonging_system if device else '' }}" placeholder="请输入所属系统">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">安装日期</label>
+                            <input type="text" class="form-control" name="install_date" value="{{ device.install_date if device else '' }}" placeholder="如：2024-01-01">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">安装位置</label>
+                            <input type="text" class="form-control" name="install_location" value="{{ device.install_location if device else '' }}" placeholder="请输入安装位置">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">生产厂家</label>
+                            <input type="text" class="form-control" name="manufacturer" value="{{ device.manufacturer if device else '' }}" placeholder="请输入生产厂家">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">出厂编码</label>
+                            <input type="text" class="form-control" name="factory_code" value="{{ device.factory_code if device else '' }}" placeholder="请输入出厂编码">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">安标证书编号</label>
+                            <input type="text" class="form-control" name="safety_cert_no" value="{{ device.safety_cert_no if device else '' }}" placeholder="请输入安标证书编号">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">防爆证书编号</label>
+                            <input type="text" class="form-control" name="explosion_proof_no" value="{{ device.explosion_proof_no if device else '' }}" placeholder="请输入防爆证书编号">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">额定电压</label>
+                            <input type="text" class="form-control" name="rated_voltage" value="{{ device.rated_voltage if device else '' }}" placeholder="如：380V">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">额定电流</label>
+                            <input type="text" class="form-control" name="rated_current" value="{{ device.rated_current if device else '' }}" placeholder="如：50A">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">额定功率</label>
+                            <input type="text" class="form-control" name="rated_power" value="{{ device.rated_power if device else '' }}" placeholder="如：15kW">
+                        </div>
+                    </div>
+
                     <!-- Modbus specific fields -->
                     <div id="modbus-fields" style="display: {% if device and device.device_type.value == 'modbus_tcp' %}block{% else %}none{% endif %};">
                         <h6 class="mb-3 border-bottom pb-2">Modbus配置</h6>
