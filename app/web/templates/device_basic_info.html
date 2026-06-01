@@ -25,7 +25,7 @@
                 </tr>
             </thead>
             <tbody id="device-list">
-                {% for device in config.devices %}
+                {% for device in devices %}
                 <tr id="device-{{ loop.index }}">
                     <td>{{ device.device_name or device.name }}</td>
                     <td>{{ device.device_code }}</td>
@@ -235,7 +235,7 @@
 let registerCount = 0;
 let areaCount = 0;
 let editingIndex = null;
-const devices = {{ config.devices | tojson }};
+const devices = {{ devices | tojson }};
 
 function showAddModal() {
     editingIndex = null;

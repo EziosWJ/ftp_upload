@@ -97,7 +97,8 @@ async def system_info_page(request: Request):
 async def device_basic_info_page(request: Request):
     """Device basic information page with device list."""
     config = load_config()
+    devices_data = [d.model_dump() for d in config.devices]
     return templates.TemplateResponse(
         request, "device_basic_info.html",
-        {"config": config, "active_page": "device-basic-info"},
+        {"config": config, "devices": devices_data, "active_page": "device-basic-info"},
     )
