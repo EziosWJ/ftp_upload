@@ -48,36 +48,11 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="modalTitle">添加测点</h5>
+                <h5 class="modal-title" id="modalTitle">添加设备</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="deviceForm">
-                    <h6 class="mb-3 border-bottom pb-2">基本信息</h6>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">设备名称</label>
-                            <input type="text" class="form-control" name="name" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">设备类型</label>
-                            <select class="form-select" name="device_type" onchange="toggleDeviceFields()">
-                                <option value="modbus_tcp">Modbus TCP</option>
-                                <option value="s7">Siemens S7</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">主机地址</label>
-                            <input type="text" class="form-control" name="host" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">端口</label>
-                            <input type="number" class="form-control" name="port" value="502">
-                        </div>
-                    </div>
-
                     <!-- Device Basic Info -->
                     <h6 class="mb-3 border-bottom pb-2">设备基本信息</h6>
                     <div class="row mb-3">
@@ -151,68 +126,6 @@
                         </div>
                     </div>
 
-                    <!-- Modbus specific fields -->
-                    <div id="modbus-fields">
-                        <h6 class="mb-3 border-bottom pb-2">Modbus配置</h6>
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label">从站ID</label>
-                                <input type="number" class="form-control" name="slave_id" value="1">
-                            </div>
-                        </div>
-                        <h6 class="mb-3 border-bottom pb-2">寄存器配置</h6>
-                        <table id="registers-list" class="table table-sm table-bordered mb-3">
-                            <thead>
-                                <tr>
-                                    <th style="width: 15%;">名称</th>
-                                    <th style="width: 15%;">地址</th>
-                                    <th style="width: 10%;">数量</th>
-                                    <th style="width: 15%;">数据类型</th>
-                                    <th style="width: 10%;">比例</th>
-                                    <th style="width: 15%;">单位</th>
-                                    <th style="width: 10%;">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="registers-tbody"></tbody>
-                        </table>
-                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addRegister()">
-                            <i class="bi bi-plus"></i> 添加寄存器
-                        </button>
-                    </div>
-
-                    <!-- S7 specific fields -->
-                    <div id="s7-fields" style="display: none;">
-                        <h6 class="mb-3 border-bottom pb-2">S7配置</h6>
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Rack</label>
-                                <input type="number" class="form-control" name="rack" value="0">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Slot</label>
-                                <input type="number" class="form-control" name="slot" value="1">
-                            </div>
-                        </div>
-                        <h6 class="mb-3 border-bottom pb-2">数据区域配置</h6>
-                        <table id="areas-list" class="table table-sm table-bordered mb-3">
-                            <thead>
-                                <tr>
-                                    <th style="width: 12%;">名称</th>
-                                    <th style="width: 10%;">区域类型</th>
-                                    <th style="width: 10%;">DB号</th>
-                                    <th style="width: 15%;">起始地址</th>
-                                    <th style="width: 10%;">大小</th>
-                                    <th style="width: 15%;">数据类型</th>
-                                    <th style="width: 18%;">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="areas-tbody"></tbody>
-                        </table>
-                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addArea()">
-                            <i class="bi bi-plus"></i> 添加数据区域
-                        </button>
-                    </div>
-
                     <div class="form-check mt-3">
                         <input class="form-check-input" type="checkbox" name="enabled" checked>
                         <label class="form-check-label">启用设备</label>
@@ -222,7 +135,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
                 <button type="button" class="btn btn-primary" onclick="saveDevice()">
-                            {% if device %}保存修改{% else %}添加测点{% endif %}
+                            {% if device %}保存修改{% else %}添加设备{% endif %}
                         </button>
             </div>
         </div>
@@ -234,14 +147,12 @@
 
 {% block scripts %}
 <script>
-let registerCount = 0;
-let areaCount = 0;
 let editingIndex = null;
 const devices = {{ devices | tojson }};
 
 function showAddModal() {
     editingIndex = null;
-    document.getElementById('modalTitle').textContent = '添加测点';
+    document.getElementById('modalTitle').textContent = '添加设备';
     document.getElementById('deviceForm').reset();
     document.getElementById('registers-tbody').innerHTML = '';
     document.getElementById('areas-tbody').innerHTML = '';
@@ -253,17 +164,9 @@ function showAddModal() {
 function editDevice(index) {
     editingIndex = index;
     const device = devices[index];
-    document.getElementById('modalTitle').textContent = '编辑测点';
+    document.getElementById('modalTitle').textContent = '编辑设备';
     
     const form = document.getElementById('deviceForm');
-    form.name.value = device.name;
-    form.device_type.value = device.device_type;
-    form.host.value = device.host;
-    form.port.value = device.port;
-    form.enabled.checked = device.enabled;
-    form.slave_id.value = device.slave_id || 1;
-    form.rack.value = device.rack || 0;
-    form.slot.value = device.slot || 1;
     
     // Basic info
     form.device_code.value = device.device_code || '';
@@ -281,82 +184,7 @@ function editDevice(index) {
     form.rated_current.value = device.rated_current || '';
     form.rated_power.value = device.rated_power || '';
     
-    toggleDeviceFields();
     new bootstrap.Modal(document.getElementById('deviceModal')).show();
-}
-
-function toggleDeviceFields() {
-    const type = document.querySelector('[name="device_type"]').value;
-    document.getElementById('modbus-fields').style.display = type === 'modbus_tcp' ? 'block' : 'none';
-    document.getElementById('s7-fields').style.display = type === 's7' ? 'block' : 'none';
-}
-
-function addRegister() {
-    registerCount++;
-    const tbody = document.getElementById('registers-tbody');
-    const tr = document.createElement('tr');
-    tr.id = 'register-' + registerCount;
-    tr.innerHTML = `
-        <td><input type="text" class="form-control form-control-sm" placeholder="名称" name="reg_name_${registerCount}"></td>
-        <td><input type="number" class="form-control form-control-sm" placeholder="地址" name="reg_address_${registerCount}"></td>
-        <td><input type="number" class="form-control form-control-sm" placeholder="数量" name="reg_count_${registerCount}" value="1"></td>
-        <td>
-            <select class="form-select form-select-sm" name="reg_data_type_${registerCount}">
-                <option value="uint16">UINT16</option>
-                <option value="int16">INT16</option>
-                <option value="uint32">UINT32</option>
-                <option value="int32">INT32</option>
-                <option value="float32">FLOAT32</option>
-                <option value="float64">FLOAT64</option>
-                <option value="bool">BOOL</option>
-            </select>
-        </td>
-        <td><input type="number" class="form-control form-control-sm" placeholder="比例" name="reg_scale_${registerCount}" value="1" step="0.01"></td>
-        <td><input type="text" class="form-control form-control-sm" placeholder="单位" name="reg_unit_${registerCount}"></td>
-        <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRegister(${registerCount})">删除</button></td>
-    `;
-    tbody.appendChild(tr);
-}
-
-function removeRegister(id) {
-    document.getElementById('register-' + id).remove();
-}
-
-function addArea() {
-    areaCount++;
-    const tbody = document.getElementById('areas-tbody');
-    const tr = document.createElement('tr');
-    tr.id = 'area-' + areaCount;
-    tr.innerHTML = `
-        <td><input type="text" class="form-control form-control-sm" placeholder="名称" name="area_name_${areaCount}"></td>
-        <td>
-            <select class="form-select form-control-sm" name="area_type_${areaCount}">
-                <option value="DB">DB</option>
-                <option value="I">I</option>
-                <option value="Q">Q</option>
-                <option value="M">M</option>
-            </select>
-        </td>
-        <td><input type="number" class="form-control form-control-sm" placeholder="DB号" name="area_db_${areaCount}" value="1"></td>
-        <td><input type="number" class="form-control form-control-sm" placeholder="起始地址" name="area_start_${areaCount}"></td>
-        <td><input type="number" class="form-control form-control-sm" placeholder="大小" name="area_size_${areaCount}"></td>
-        <td>
-            <select class="form-select form-control-sm" name="area_data_type_${areaCount}">
-                <option value="float32">FLOAT32</option>
-                <option value="int16">INT16</option>
-                <option value="uint16">UINT16</option>
-                <option value="int32">INT32</option>
-                <option value="uint32">UINT32</option>
-                <option value="bool">BOOL</option>
-            </select>
-        </td>
-        <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeArea(${areaCount})">删除</button></td>
-    `;
-    tbody.appendChild(tr);
-}
-
-function removeArea(id) {
-    document.getElementById('area-' + id).remove();
 }
 
 async function saveDevice() {
@@ -364,18 +192,15 @@ async function saveDevice() {
     const formData = new FormData(form);
     
     const device = {
-        name: formData.get('name'),
-        device_type: formData.get('device_type'),
-        host: formData.get('host'),
-        port: parseInt(formData.get('port')) || 502,
+        name: formData.get('device_code') || 'device_' + Date.now(),
+        device_type: 'modbus_tcp',
+        host: '127.0.0.1',
+        port: 502,
         enabled: formData.get('enabled') === 'on',
-        slave_id: parseInt(formData.get('slave_id')) || 1,
-        rack: parseInt(formData.get('rack')) || 0,
-        slot: parseInt(formData.get('slot')) || 1,
         registers: [],
         areas: [],
         device_code: formData.get('device_code') || '',
-        device_name: formData.get('name'),
+        device_name: formData.get('device_code') || '',
         spec_model: formData.get('spec_model') || '',
         device_category: formData.get('device_category') || '',
         production_date: formData.get('production_date') || '',
@@ -391,38 +216,6 @@ async function saveDevice() {
         rated_power: formData.get('rated_power') || ''
     };
     
-    // Collect registers
-    for (let i = 1; i <= registerCount; i++) {
-        const regName = formData.get(`reg_name_${i}`);
-        const regAddress = formData.get(`reg_address_${i}`);
-        if (regName && regAddress) {
-            device.registers.push({
-                name: regName,
-                address: parseInt(regAddress),
-                count: parseInt(formData.get(`reg_count_${i}`)) || 1,
-                data_type: formData.get(`reg_data_type_${i}`) || 'uint16',
-                scale: parseFloat(formData.get(`reg_scale_${i}`)) || 1,
-                unit: formData.get(`reg_unit_${i}`) || ''
-            });
-        }
-    }
-    
-    // Collect areas
-    for (let i = 1; i <= areaCount; i++) {
-        const areaName = formData.get(`area_name_${i}`);
-        const areaStart = formData.get(`area_start_${i}`);
-        if (areaName && areaStart) {
-            device.areas.push({
-                name: areaName,
-                area: formData.get(`area_type_${i}`) || 'DB',
-                db_number: parseInt(formData.get(`area_db_${i}`)) || 1,
-                start: parseInt(areaStart),
-                size: parseInt(formData.get(`area_size_${i}`)) || 1,
-                data_type: formData.get(`area_data_type_${i}`) || 'float32'
-            });
-        }
-    }
-    
     try {
         const url = editingIndex !== null ? `/api/devices/${devices[editingIndex].name}` : '/api/devices';
         const method = editingIndex !== null ? 'PUT' : 'POST';
@@ -434,7 +227,7 @@ async function saveDevice() {
         });
         
         if (response.ok) {
-            showMessage(editingIndex !== null ? '测点已更新' : '测点已添加', 'success');
+            showMessage(editingIndex !== null ? '设备已更新' : '设备已添加', 'success');
             bootstrap.Modal.getInstance(document.getElementById('deviceModal')).hide();
             setTimeout(() => location.reload(), 500);
         } else {
@@ -447,7 +240,7 @@ async function saveDevice() {
 }
 
 async function deleteDevice(name) {
-    if (!confirm(`确定要删除测点 "${name}" 吗？`)) return;
+    if (!confirm(`确定要删除设备 "${name}" 吗？`)) return;
     
     try {
         const response = await fetch(`/api/devices/${name}`, {
@@ -455,7 +248,7 @@ async function deleteDevice(name) {
         });
         
         if (response.ok) {
-            showMessage('测点已删除', 'success');
+            showMessage('设备已删除', 'success');
             setTimeout(() => location.reload(), 500);
         } else {
             const error = await response.json();
