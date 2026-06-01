@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}设备基本信息配置 - 工业数据采集系统{% endblock %}
+{% block page_title %}设备基本信息配置{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">设备基本信息配置</h5>
+            </div>
+            <div class="card-body">
+                <form id="deviceBasicInfoForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">设备编码</label>
+                            <input type="text" class="form-control" name="device_code" value="{{ config.device_basic_info.device_code }}" placeholder="请输入设备编码">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">设备名称</label>
+                            <input type="text" class="form-control" name="device_name" value="{{ config.device_basic_info.device_name }}" placeholder="请输入设备名称">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">规格型号</label>
+                            <input type="text" class="form-control" name="spec_model" value="{{ config.device_basic_info.spec_model }}" placeholder="请输入规格型号">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">设备类别</label>
+                            <input type="text" class="form-control" name="device_category" value="{{ config.device_basic_info.device_category }}" placeholder="请输入设备类别">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">生产日期</label>
+                            <input type="text" class="form-control" name="production_date" value="{{ config.device_basic_info.production_date }}" placeholder="如：2024-01-01">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">所属系统</label>
+                            <input type="text" class="form-control" name="belonging_system" value="{{ config.device_basic_info.belonging_system }}" placeholder="请输入所属系统">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">安装日期</label>
+                            <input type="text" class="form-control" name="install_date" value="{{ config.device_basic_info.install_date }}" placeholder="如：2024-01-01">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">安装位置</label>
+                            <input type="text" class="form-control" name="install_location" value="{{ config.device_basic_info.install_location }}" placeholder="请输入安装位置">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">生产厂家</label>
+                            <input type="text" class="form-control" name="manufacturer" value="{{ config.device_basic_info.manufacturer }}" placeholder="请输入生产厂家">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">出厂编码</label>
+                            <input type="text" class="form-control" name="factory_code" value="{{ config.device_basic_info.factory_code }}" placeholder="请输入出厂编码">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">安标证书编号</label>
+                            <input type="text" class="form-control" name="safety_cert_no" value="{{ config.device_basic_info.safety_cert_no }}" placeholder="请输入安标证书编号">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">防爆证书编号</label>
+                            <input type="text" class="form-control" name="explosion_proof_no" value="{{ config.device_basic_info.explosion_proof_no }}" placeholder="请输入防爆证书编号">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">额定电压</label>
+                            <input type="text" class="form-control" name="rated_voltage" value="{{ config.device_basic_info.rated_voltage }}" placeholder="如：380V">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">额定电流</label>
+                            <input type="text" class="form-control" name="rated_current" value="{{ config.device_basic_info.rated_current }}" placeholder="如：50A">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">额定功率</label>
+                            <input type="text" class="form-control" name="rated_power" value="{{ config.device_basic_info.rated_power }}" placeholder="如：15kW">
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-primary" onclick="saveDeviceBasicInfo()">
+                            保存配置
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">帮助信息</h5>
+            </div>
+            <div class="card-body">
+                <h6>设备基本信息说明</h6>
+                <ul>
+                    <li><strong>设备编码</strong>：设备的唯一编码标识</li>
+                    <li><strong>设备名称</strong>：设备的名称</li>
+                    <li><strong>规格型号</strong>：设备的规格型号</li>
+                    <li><strong>设备类别</strong>：设备的分类</li>
+                    <li><strong>生产日期</strong>：设备的生产日期</li>
+                    <li><strong>所属系统</strong>：设备所属的系统</li>
+                    <li><strong>安装日期</strong>：设备的安装日期</li>
+                    <li><strong>安装位置</strong>：设备的安装位置</li>
+                    <li><strong>生产厂家</strong>：设备的生产厂家</li>
+                    <li><strong>出厂编码</strong>：设备出厂时的编码</li>
+                    <li><strong>安标证书编号</strong>：安全标志证书编号</li>
+                    <li><strong>防爆证书编号</strong>：防爆合格证编号</li>
+                    <li><strong>额定电压</strong>：设备的额定电压</li>
+                    <li><strong>额定电流</strong>：设备的额定电流</li>
+                    <li><strong>额定功率</strong>：设备的额定功率</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="message-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function saveDeviceBasicInfo() {
+    const form = document.getElementById('deviceBasicInfoForm');
+    const formData = new FormData(form);
+
+    const deviceBasicInfo = {
+        device_code: formData.get('device_code') || '',
+        device_name: formData.get('device_name') || '',
+        spec_model: formData.get('spec_model') || '',
+        device_category: formData.get('device_category') || '',
+        production_date: formData.get('production_date') || '',
+        belonging_system: formData.get('belonging_system') || '',
+        install_date: formData.get('install_date') || '',
+        install_location: formData.get('install_location') || '',
+        manufacturer: formData.get('manufacturer') || '',
+        factory_code: formData.get('factory_code') || '',
+        safety_cert_no: formData.get('safety_cert_no') || '',
+        explosion_proof_no: formData.get('explosion_proof_no') || '',
+        rated_voltage: formData.get('rated_voltage') || '',
+        rated_current: formData.get('rated_current') || '',
+        rated_power: formData.get('rated_power') || ''
+    };
+
+    try {
+        const response = await fetch('/api/device-basic-info', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(deviceBasicInfo)
+        });
+
+        if (response.ok) {
+            showMessage('设备基本信息已保存', 'success');
+        } else {
+            const error = await response.json();
+            showMessage(formatError(error.detail) || '保存失败', 'danger');
+        }
+    } catch (error) {
+        showMessage('请求失败: ' + error.message, 'danger');
+    }
+}
+</script>
+{% endblock %}

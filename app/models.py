@@ -67,22 +67,6 @@ class DeviceConfig(BaseModel):
     slot: int = 1
     areas: list[S7AreaConfig] = []
 
-    # Device basic info
-    device_code: str = Field("", description="设备编码")
-    spec_model: str = Field("", description="规格型号")
-    device_category: str = Field("", description="设备类别")
-    production_date: str = Field("", description="生产日期")
-    belonging_system: str = Field("", description="所属系统")
-    install_date: str = Field("", description="安装日期")
-    install_location: str = Field("", description="安装位置")
-    manufacturer: str = Field("", description="生产厂家")
-    factory_code: str = Field("", description="出厂编码")
-    safety_cert_no: str = Field("", description="安标证书编号")
-    explosion_proof_no: str = Field("", description="防爆证书编号")
-    rated_voltage: str = Field("", description="额定电压")
-    rated_current: str = Field("", description="额定电流")
-    rated_power: str = Field("", description="额定功率")
-
 
 class ScheduleConfig(BaseModel):
     """Polling schedule for a device."""
@@ -110,14 +94,32 @@ class SystemInfo(BaseModel):
     system_model: str = Field("", description="系统型号")
 
 
+class DeviceBasicInfo(BaseModel):
+    """Basic information for a device."""
+    device_code: str = Field("", description="设备编码")
+    device_name: str = Field("", description="设备名称")
+    spec_model: str = Field("", description="规格型号")
+    device_category: str = Field("", description="设备类别")
+    production_date: str = Field("", description="生产日期")
+    belonging_system: str = Field("", description="所属系统")
+    install_date: str = Field("", description="安装日期")
+    install_location: str = Field("", description="安装位置")
+    manufacturer: str = Field("", description="生产厂家")
+    factory_code: str = Field("", description="出厂编码")
+    safety_cert_no: str = Field("", description="安标证书编号")
+    explosion_proof_no: str = Field("", description="防爆证书编号")
+    rated_voltage: str = Field("", description="额定电压")
+    rated_current: str = Field("", description="额定电流")
+    rated_power: str = Field("", description="额定功率")
+
+
 class AppConfig(BaseModel):
     """Top-level application configuration."""
     devices: list[DeviceConfig] = []
     schedules: list[ScheduleConfig] = []
     ftp: FtpConfig = FtpConfig()
     system_info: SystemInfo = SystemInfo()
-    ftp: FtpConfig = FtpConfig()
+    device_basic_info: DeviceBasicInfo = DeviceBasicInfo()
     web_port: int = 8000
-    system_info: SystemInfo = SystemInfo()
     data_dir: str = "data"
     log_level: str = "INFO"

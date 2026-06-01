@@ -10,7 +10,8 @@ from pydantic import BaseModel
 from ..config import load_config, save_config
 from ..models import (
     AppConfig, DeviceConfig, DeviceType, ScheduleConfig,
-    FtpConfig, ModbusRegisterConfig, S7AreaConfig, DataType, SystemInfo
+    FtpConfig, ModbusRegisterConfig, S7AreaConfig, DataType, SystemInfo,
+    DeviceBasicInfo
 )
 
 router = APIRouter(prefix="/api")
@@ -227,6 +228,23 @@ async def update_system_info(system_info: SystemInfo):
     save_config(config)
     logger.info("Updated system information")
     return {"status": "success", "system_info": system_info.model_dump()}
+
+
+@router.get("/device-basic-info")
+async def get_device_basic_info():
+    """Get device basic information."""
+    config = load_config()
+    return {"device_basic_info": config.device_basic_info.model_dump()}
+
+
+@router.post("/device-basic-info")
+async def update_device_basic_info(device_basic_info: DeviceBasicInfo):
+    """Update device basic information."""
+    config = load_config()
+    config.device_basic_info = device_basic_info
+    save_config(config)
+    logger.info("Updated device basic information")
+    return {"status": "success", "device_basic_info": device_basic_info.model_dump()}
 
 
 @router.get("/status")
