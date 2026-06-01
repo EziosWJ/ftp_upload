@@ -48,7 +48,7 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="modalTitle">添加设备</h5>
+                <h5 class="modal-title" id="modalTitle">添加测点</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -221,7 +221,9 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-primary" onclick="saveDevice()">保存</button>
+                <button type="button" class="btn btn-primary" onclick="saveDevice()">
+                            {% if device %}保存修改{% else %}添加测点{% endif %}
+                        </button>
             </div>
         </div>
     </div>
@@ -239,7 +241,7 @@ const devices = {{ devices | tojson }};
 
 function showAddModal() {
     editingIndex = null;
-    document.getElementById('modalTitle').textContent = '添加设备';
+    document.getElementById('modalTitle').textContent = '添加测点';
     document.getElementById('deviceForm').reset();
     document.getElementById('registers-tbody').innerHTML = '';
     document.getElementById('areas-tbody').innerHTML = '';
@@ -251,7 +253,7 @@ function showAddModal() {
 function editDevice(index) {
     editingIndex = index;
     const device = devices[index];
-    document.getElementById('modalTitle').textContent = '编辑设备';
+    document.getElementById('modalTitle').textContent = '编辑测点';
     
     const form = document.getElementById('deviceForm');
     form.name.value = device.name;
@@ -432,7 +434,7 @@ async function saveDevice() {
         });
         
         if (response.ok) {
-            showMessage(editingIndex !== null ? '设备已更新' : '设备已添加', 'success');
+            showMessage(editingIndex !== null ? '测点已更新' : '测点已添加', 'success');
             bootstrap.Modal.getInstance(document.getElementById('deviceModal')).hide();
             setTimeout(() => location.reload(), 500);
         } else {
@@ -445,7 +447,7 @@ async function saveDevice() {
 }
 
 async function deleteDevice(name) {
-    if (!confirm(`确定要删除设备 "${name}" 吗？`)) return;
+    if (!confirm(`确定要删除测点 "${name}" 吗？`)) return;
     
     try {
         const response = await fetch(`/api/devices/${name}`, {
@@ -453,7 +455,7 @@ async function deleteDevice(name) {
         });
         
         if (response.ok) {
-            showMessage('设备已删除', 'success');
+            showMessage('测点已删除', 'success');
             setTimeout(() => location.reload(), 500);
         } else {
             const error = await response.json();
