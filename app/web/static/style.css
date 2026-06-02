@@ -26,6 +26,50 @@
     text-align: center;
 }
 
+/* Dropdown menu styles */
+.sidebar .dropdown-menu {
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.sidebar .dropdown-item {
+    padding: 10px 20px 10px 50px;
+    border-radius: 5px;
+    margin: 2px 0;
+}
+
+.sidebar .dropdown-item:hover {
+    background-color: rgba(255,255,255,0.1);
+}
+
+.sidebar .dropdown-item.active {
+    background-color: rgba(255,255,255,0.2);
+    font-weight: bold;
+}
+
+/* Collapsible submenu styles */
+.sidebar .sidebar-submenu-toggle {
+    cursor: pointer;
+}
+
+.sidebar .sidebar-submenu-toggle .bi-chevron-right {
+    transition: transform 0.2s;
+}
+
+.sidebar .sidebar-submenu {
+    margin-left: 10px;
+}
+
+.sidebar .sidebar-submenu .nav-link {
+    padding: 10px 20px 10px 40px;
+    font-size: 0.9rem;
+}
+
+.sidebar .sidebar-submenu .nav-link i {
+    margin-right: 8px;
+    width: 16px;
+    text-align: center;
+}
+
 /* Status indicators */
 .status-dot {
     display: inline-block;

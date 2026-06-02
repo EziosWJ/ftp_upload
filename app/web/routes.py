@@ -113,3 +113,26 @@ async def safety_cert_page(request: Request):
         request, "safety_cert.html",
         {"config": config, "safety_certs": safety_certs_data, "active_page": "safety-cert"},
     )
+
+
+@router.get("/measure-point")
+async def measure_point_page(request: Request):
+    """Measure point info page."""
+    config = load_config()
+    measure_points_data = [p.model_dump() for p in config.measure_point_list]
+    return templates.TemplateResponse(
+        request, "measure_point.html",
+        {"config": config, "measure_points": measure_points_data, "active_page": "measure-point"},
+    )
+
+
+@router.get("/measure-point-realtime")
+async def measure_point_realtime_page(request: Request):
+    """Measure point realtime info page."""
+    config = load_config()
+    measure_point_realtime_data = [p.model_dump() for p in config.measure_point_realtime_list]
+    measure_points_data = [p.model_dump() for p in config.measure_point_list]
+    return templates.TemplateResponse(
+        request, "measure_point_realtime.html",
+        {"config": config, "measure_point_realtime_list": measure_point_realtime_data, "measure_point_list": measure_points_data, "active_page": "measure-point-realtime"},
+    )

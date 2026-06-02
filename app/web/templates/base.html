@@ -33,9 +33,27 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white {% if active_page == 'devices' %}active{% endif %}" href="/devices">
+                        <a class="nav-link text-white sidebar-submenu-toggle {% if active_page in ['devices', 'measure-point'] %}active{% endif %}" href="#" onclick="toggleSidebarSubmenu(this); return false;">
                             <i class="bi bi-hdd-rack"></i> 测点管理
+                            <i class="bi bi-chevron-right float-end"></i>
                         </a>
+                        <ul class="nav flex-column sidebar-submenu" style="display: none;">
+                            <li>
+                                <a class="nav-link text-white ps-4 {% if active_page == 'devices' %}active{% endif %}" href="/devices">
+                                    <i class="bi bi-diagram-3"></i> 测点管理
+                                </a>
+                            </li>
+                            <li>
+                                <a class="nav-link text-white ps-4 {% if active_page == 'measure-point' %}active{% endif %}" href="/measure-point">
+                                    <i class="bi bi-geo-alt"></i> 测点基础信息
+                                </a>
+                            </li>
+                            <li>
+                                <a class="nav-link text-white ps-4 {% if active_page == 'measure-point-realtime' %}active{% endif %}" href="/measure-point-realtime">
+                                    <i class="bi bi-activity"></i> 测点实时信息
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link text-white {% if active_page == 'schedules' %}active{% endif %}" href="/schedules">
@@ -105,6 +123,37 @@
         container.appendChild(alert);
         setTimeout(() => alert.remove(), 5000);
     }
+
+    function toggleSidebarSubmenu(element) {
+        const submenu = element.nextElementSibling;
+        const chevron = element.querySelector('.bi-chevron-right');
+        const isOpen = submenu.style.display !== 'none';
+
+        if (isOpen) {
+            submenu.style.display = 'none';
+            chevron.classList.remove('bi-chevron-down');
+            chevron.classList.add('bi-chevron-right');
+        } else {
+            submenu.style.display = 'block';
+            chevron.classList.remove('bi-chevron-right');
+            chevron.classList.add('bi-chevron-down');
+        }
+    }
+
+    // Auto-expand submenu if current page is active
+    document.addEventListener('DOMContentLoaded', function() {
+        const activeSubmenu = document.querySelector('.sidebar-submenu .nav-link.active');
+        if (activeSubmenu) {
+            const submenu = activeSubmenu.parentElement.parentElement;
+            const toggle = submenu.previousElementSibling;
+            submenu.style.display = 'block';
+            const chevron = toggle.querySelector('.bi-chevron-right');
+            if (chevron) {
+                chevron.classList.remove('bi-chevron-right');
+                chevron.classList.add('bi-chevron-down');
+            }
+        }
+    });
     </script>
     {% block scripts %}{% endblock %}
 </body>

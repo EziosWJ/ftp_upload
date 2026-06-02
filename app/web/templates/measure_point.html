@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+
+{% block title %}测点基础信息 - 工业数据采集系统{% endblock %}
+{% block page_title %}测点基础信息{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>测点基础信息列表</h4>
+    <button class="btn btn-primary" onclick="showAddModal()">
+        <i class="bi bi-plus-lg"></i> 添加测点
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover" id="measure-point-table">
+            <thead>
+                <tr>
+                    <th>测点编码</th>
+                    <th>测点类型编码</th>
+                    <th>测点类型名称</th>
+                    <th>所属设备编码</th>
+                    <th>测点位置</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="measure-point-list">
+                {% for point in measure_points %}
+                <tr id="point-{{ loop.index }}">
+                    <td>{{ point.point_code }}</td>
+                    <td>{{ point.point_type_code }}</td>
+                    <td>{{ point.point_type_name }}</td>
+                    <td>{{ point.device_code }}</td>
+                    <td>{{ point.point_location }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editPoint({{ loop.index }})">编辑</button>
+                        <button class="btn btn-sm btn-outline-info btn-sm" onclick="viewPointDetail('{{ point.point_code }}')">详情</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deletePoint('{{ point.point_code }}')">删除</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="message-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>
+
+<!-- Add/Edit Measure Point Modal -->
+<div class="modal fade" id="measurePointModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="measurePointModalTitle">添加测点</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="measurePointForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">测点编码</label>
+                            <input type="text" class="form-control" name="point_code" required placeholder="请输入测点编码">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">测点类型编码</label>
+                            <input type="text" class="form-control" name="point_type_code" placeholder="请输入测点类型编码">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">测点类型名称</label>
+                            <input type="text" class="form-control" name="point_type_name" placeholder="请输入测点类型名称">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">所属设备编码</label>
+                            <input type="text" class="form-control" name="device_code" placeholder="请输入所属设备编码">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">测点位置</label>
+                            <input type="text" class="form-control" name="point_location" placeholder="请输入测点位置">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">测量值单位</label>
+                            <input type="text" class="form-control" name="unit" placeholder="如：°C, %, Pa">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">量程上限</label>
+                            <input type="number" class="form-control" name="range_upper" placeholder="请输入量程上限">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">量程下限</label>
+                            <input type="number" class="form-control" name="range_lower" placeholder="请输入量程下限">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">报警上限</label>
+                            <input type="number" class="form-control" name="alarm_upper" placeholder="请输入报警上限">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">报警下限</label>
+                            <input type="number" class="form-control" name="alarm_lower" placeholder="请输入报警下限">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">传感器关联关系</label>
+                            <input type="text" class="form-control" name="sensor_relation" placeholder="请输入传感器关联关系">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">数据定义时间</label>
+                            <input type="text" class="form-control" name="data_define_time" placeholder="格式：YYYY-MM-DD">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="savePoint()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Point Detail Modal -->
+<div class="modal fade" id="pointDetailModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">测点详细信息</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="pointDetailContent">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let editingPointIndex = null;
+const measurePoints = {{ measure_points | tojson }};
+
+function showAddModal() {
+    editingPointIndex = null;
+    document.getElementById('measurePointModalTitle').textContent = '添加测点';
+    document.getElementById('measurePointForm').reset();
+    new bootstrap.Modal(document.getElementById('measurePointModal')).show();
+}
+
+function editPoint(index) {
+    editingPointIndex = index;
+    const point = measurePoints[index];
+    document.getElementById('measurePointModalTitle').textContent = '编辑测点';
+
+    const form = document.getElementById('measurePointForm');
+    form.point_code.value = point.point_code || '';
+    form.point_type_code.value = point.point_type_code || '';
+    form.point_type_name.value = point.point_type_name || '';
+    form.device_code.value = point.device_code || '';
+    form.point_location.value = point.point_location || '';
+    form.unit.value = point.unit || '';
+    form.range_upper.value = point.range_upper || 0;
+    form.range_lower.value = point.range_lower || 0;
+    form.alarm_upper.value = point.alarm_upper || 0;
+    form.alarm_lower.value = point.alarm_lower || 0;
+    form.sensor_relation.value = point.sensor_relation || '';
+    form.data_define_time.value = point.data_define_time || '';
+
+    new bootstrap.Modal(document.getElementById('measurePointModal')).show();
+}
+
+function viewPointDetail(pointCode) {
+    const point = measurePoints.find(p => p.point_code === pointCode);
+    if (!point) return;
+
+    const content = `
+        <table class="table table-bordered">
+            <tr><th width="40%">测点编码</th><td>${point.point_code || '-'}</td></tr>
+            <tr><th>测点类型编码</th><td>${point.point_type_code || '-'}</td></tr>
+            <tr><th>测点类型名称</th><td>${point.point_type_name || '-'}</td></tr>
+            <tr><th>所属设备编码</th><td>${point.device_code || '-'}</td></tr>
+            <tr><th>测点位置</th><td>${point.point_location || '-'}</td></tr>
+            <tr><th>测量值单位</th><td>${point.unit || '-'}</td></tr>
+            <tr><th>量程上限</th><td>${point.range_upper || 0}</td></tr>
+            <tr><th>量程下限</th><td>${point.range_lower || 0}</td></tr>
+            <tr><th>报警上限</th><td>${point.alarm_upper || 0}</td></tr>
+            <tr><th>报警下限</th><td>${point.alarm_lower || 0}</td></tr>
+            <tr><th>传感器关联关系</th><td>${point.sensor_relation || '-'}</td></tr>
+            <tr><th>数据定义时间</th><td>${point.data_define_time || '-'}</td></tr>
+        </table>
+    `;
+    document.getElementById('pointDetailContent').innerHTML = content;
+    new bootstrap.Modal(document.getElementById('pointDetailModal')).show();
+}
+
+async function savePoint() {
+    const form = document.getElementById('measurePointForm');
+    const formData = new FormData(form);
+
+    const point = {
+        point_code: formData.get('point_code'),
+        point_type_code: formData.get('point_type_code') || '',
+        point_type_name: formData.get('point_type_name') || '',
+        device_code: formData.get('device_code') || '',
+        point_location: formData.get('point_location') || '',
+        unit: formData.get('unit') || '',
+        range_upper: parseFloat(formData.get('range_upper')) || 0,
+        range_lower: parseFloat(formData.get('range_lower')) || 0,
+        alarm_upper: parseFloat(formData.get('alarm_upper')) || 0,
+        alarm_lower: parseFloat(formData.get('alarm_lower')) || 0,
+        sensor_relation: formData.get('sensor_relation') || '',
+        data_define_time: formData.get('data_define_time') || ''
+    };
+
+    try {
+        const url = editingPointIndex !== null ? `/api/measure-points/${encodeURIComponent(measurePoints[editingPointIndex].point_code)}` : '/api/measure-points';
+        const method = editingPointIndex !== null ? 'PUT' : 'POST';
+
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(point)
+        });
+
+        if (response.ok) {
+            showMessage(editingPointIndex !== null ? '测点已更新' : '测点已添加', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('measurePointModal')).hide();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            const error = await response.json();
+            showMessage(formatError(error.detail) || '保存失败', 'danger');
+        }
+    } catch (error) {
+        showMessage('请求失败: ' + error.message, 'danger');
+    }
+}
+
+async function deletePoint(pointCode) {
+    if (!confirm(`确定要删除测点 "${pointCode}" 吗？`)) return;
+
+    try {
+        const response = await fetch(`/api/measure-points/${encodeURIComponent(pointCode)}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            showMessage('测点已删除', 'success');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            const error = await response.json();
+            showMessage(formatError(error.detail) || '删除失败', 'danger');
+        }
+    } catch (error) {
+        showMessage('请求失败: ' + error.message, 'danger');
+    }
+}
+</script>
+{% endblock %}

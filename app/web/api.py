@@ -11,7 +11,7 @@ from ..config import load_config, save_config
 from ..models import (
     AppConfig, DeviceConfig, DeviceType, ScheduleConfig,
     FtpConfig, ModbusRegisterConfig, S7AreaConfig, DataType, SystemInfo,
-    DeviceBasicInfo, SafetyCertInfo
+    DeviceBasicInfo, SafetyCertInfo, MeasurePointInfo, MeasurePointRealtimeInfo
 )
 
 router = APIRouter(prefix="/api")
@@ -319,6 +319,138 @@ async def get_safety_cert(device_name: str):
         raise HTTPException(status_code=404, detail="安标信息不存在")
 
     return {"cert": cert.model_dump()}
+
+
+# Measure Point Info API
+@router.get("/measure-points")
+async def list_measure_points():
+    """List all measure point info."""
+    config = load_config()
+    return {"measure_points": [p.model_dump() for p in config.measure_point_list]}
+
+
+@router.post("/measure-points")
+async def add_measure_point(point: MeasurePointInfo):
+    """Add a new measure point info."""
+    config = load_config()
+
+    # Check for duplicate point_code
+    if any(p.point_code == point.point_code for p in config.measure_point_list):
+        raise HTTPException(status_code=400, detail="测点编码已存在")
+
+    config.measure_point_list.append(point)
+    save_config(config)
+    logger.info(f"Added measure point: {point.point_code}")
+    return {"status": "success", "point": point.model_dump()}
+
+
+@router.put("/measure-points/{point_code}")
+async def update_measure_point(point_code: str, point: MeasurePointInfo):
+    """Update an existing measure point info."""
+    config = load_config()
+
+    idx = next((i for i, p in enumerate(config.measure_point_list) if p.point_code == point_code), None)
+    if idx is None:
+        raise HTTPException(status_code=404, detail="测点不存在")
+
+    config.measure_point_list[idx] = point
+    save_config(config)
+    logger.info(f"Updated measure point: {point_code}")
+    return {"status": "success", "point": point.model_dump()}
+
+
+@router.delete("/measure-points/{point_code}")
+async def delete_measure_point(point_code: str):
+    """Delete a measure point info."""
+    config = load_config()
+
+    original_len = len(config.measure_point_list)
+    config.measure_point_list = [p for p in config.measure_point_list if p.point_code != point_code]
+
+    if len(config.measure_point_list) == original_len:
+        raise HTTPException(status_code=404, detail="测点不存在")
+
+    save_config(config)
+    logger.info(f"Deleted measure point: {point_code}")
+    return {"status": "success"}
+
+
+@router.get("/measure-points/{point_code}")
+async def get_measure_point(point_code: str):
+    """Get measure point info for a specific point."""
+    config = load_config()
+
+    point = next((p for p in config.measure_point_list if p.point_code == point_code), None)
+    if point is None:
+        raise HTTPException(status_code=404, detail="测点不存在")
+
+    return {"point": point.model_dump()}
+
+
+# Measure Point Realtime Info endpoints
+@router.get("/measure-point-realtime")
+async def get_measure_point_realtime_list():
+    """Get all measure point realtime info."""
+    config = load_config()
+    return {"list": [p.model_dump() for p in config.measure_point_realtime_list]}
+
+
+@router.post("/measure-point-realtime")
+async def add_measure_point_realtime(realtime: MeasurePointRealtimeInfo):
+    """Add a new measure point realtime info."""
+    config = load_config()
+
+    existing = next((p for p in config.measure_point_realtime_list if p.point_code == realtime.point_code), None)
+    if existing:
+        raise HTTPException(status_code=400, detail="测点实时信息已存在")
+
+    config.measure_point_realtime_list.append(realtime)
+    save_config(config)
+    logger.info(f"Added measure point realtime: {realtime.point_code}")
+    return {"status": "success", "realtime": realtime.model_dump()}
+
+
+@router.put("/measure-point-realtime/{point_code}")
+async def update_measure_point_realtime(point_code: str, realtime: MeasurePointRealtimeInfo):
+    """Update an existing measure point realtime info."""
+    config = load_config()
+
+    idx = next((i for i, p in enumerate(config.measure_point_realtime_list) if p.point_code == point_code), None)
+    if idx is None:
+        raise HTTPException(status_code=404, detail="测点实时信息不存在")
+
+    config.measure_point_realtime_list[idx] = realtime
+    save_config(config)
+    logger.info(f"Updated measure point realtime: {point_code}")
+    return {"status": "success", "realtime": realtime.model_dump()}
+
+
+@router.delete("/measure-point-realtime/{point_code}")
+async def delete_measure_point_realtime(point_code: str):
+    """Delete a measure point realtime info."""
+    config = load_config()
+
+    original_len = len(config.measure_point_realtime_list)
+    config.measure_point_realtime_list = [p for p in config.measure_point_realtime_list if p.point_code != point_code]
+
+    if len(config.measure_point_realtime_list) == original_len:
+        raise HTTPException(status_code=404, detail="测点实时信息不存在")
+
+    save_config(config)
+    logger.info(f"Deleted measure point realtime: {point_code}")
+    return {"status": "success"}
+
+
+@router.get("/measure-point-realtime/{point_code}")
+async def get_measure_point_realtime(point_code: str):
+    """Get measure point realtime info for a specific point."""
+    config = load_config()
+
+    realtime = next((p for p in config.measure_point_realtime_list if p.point_code == point_code), None)
+    if realtime is None:
+        raise HTTPException(status_code=404, detail="测点实时信息不存在")
+
+    return {"realtime": realtime.model_dump()}
 
 
 @router.post("/ftp/test")

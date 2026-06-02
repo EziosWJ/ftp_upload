@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+
+{% block title %}测点实时信息 - 工业数据采集系统{% endblock %}
+{% block page_title %}测点实时信息{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>测点实时信息列表</h4>
+    <button class="btn btn-primary" onclick="showAddModal()">
+        <i class="bi bi-plus-lg"></i> 添加测点实时信息
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover" id="measure-point-realtime-table">
+            <thead>
+                <tr>
+                    <th>测点编码</th>
+                    <th>测点类型编码</th>
+                    <th>测点类型名称</th>
+                    <th>所属设备编码</th>
+                    <th>测点数值</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="measure-point-realtime-list">
+                {% for realtime in measure_point_realtime_list %}
+                <tr id="realtime-{{ loop.index }}">
+                    <td>{{ realtime.point_code }}</td>
+                    <td>{{ realtime.point_type_code }}</td>
+                    <td>{{ realtime.point_type_name }}</td>
+                    <td>{{ realtime.device_code }}</td>
+                    <td>{{ realtime.point_value }} {{ realtime.point_unit }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editRealtime({{ loop.index }})">编辑</button>
+                        <button class="btn btn-sm btn-outline-info btn-sm" onclick="viewRealtimeDetail('{{ realtime.point_code }}')">详情</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteRealtime('{{ realtime.point_code }}')">删除</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="message-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>
+
+<!-- Add/Edit Measure Point Realtime Modal -->
+<div class="modal fade" id="measurePointRealtimeModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="measurePointRealtimeModalTitle">添加测点实时信息</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="measurePointRealtimeForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">测点编码 <span class="text-danger">*</span></label>
+                            <select class="form-select" name="point_code" id="point_code_select" required onchange="onPointCodeChange()">
+                                <option value="">请选择测点</option>
+                                {% for point in measure_point_list %}
+                                <option value="{{ point.point_code }}" data-point-type-code="{{ point.point_type_code }}" data-point-type-name="{{ point.point_type_name }}" data-device-code="{{ point.device_code }}" data-unit="{{ point.unit }}">{{ point.point_code }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">测点类型编码</label>
+                            <input type="text" class="form-control" name="point_type_code" id="point_type_code" readonly>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">测点类型名称</label>
+                            <input type="text" class="form-control" name="point_type_name" id="point_type_name" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">所属设备编码</label>
+                            <input type="text" class="form-control" name="device_code" id="device_code" readonly>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">测点数值</label>
+                            <input type="number" step="0.01" class="form-control" name="point_value" placeholder="请输入测点数值">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">测点数值单位</label>
+                            <input type="text" class="form-control" name="point_unit" id="point_unit" readonly>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">测点状态</label>
+                            <input type="text" class="form-control" name="point_status" placeholder="请输入测点状态">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">数据时间</label>
+                            <input type="text" class="form-control" name="data_time" placeholder="格式：YYYY-MM-DD HH:mm:ss">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveRealtime()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Realtime Detail Modal -->
+<div class="modal fade" id="realtimeDetailModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">测点实时信息详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="realtimeDetailContent">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let editingRealtimeIndex = null;
+const measurePointRealtimeList = {{ measure_point_realtime_list | tojson }};
+const measurePointList = {{ measure_point_list | tojson }};
+
+function onPointCodeChange() {
+    const select = document.getElementById('point_code_select');
+    const selectedOption = select.options[select.selectedIndex];
+    if (selectedOption && selectedOption.value) {
+        document.getElementById('point_type_code').value = selectedOption.dataset.pointTypeCode || '';
+        document.getElementById('point_type_name').value = selectedOption.dataset.pointTypeName || '';
+        document.getElementById('device_code').value = selectedOption.dataset.deviceCode || '';
+        document.getElementById('point_unit').value = selectedOption.dataset.unit || '';
+    } else {
+        document.getElementById('point_type_code').value = '';
+        document.getElementById('point_type_name').value = '';
+        document.getElementById('device_code').value = '';
+        document.getElementById('point_unit').value = '';
+    }
+}
+
+function showAddModal() {
+    editingRealtimeIndex = null;
+    document.getElementById('measurePointRealtimeModalTitle').textContent = '添加测点实时信息';
+    document.getElementById('measurePointRealtimeForm').reset();
+    onPointCodeChange();
+    new bootstrap.Modal(document.getElementById('measurePointRealtimeModal')).show();
+}
+
+function editRealtime(index) {
+    editingRealtimeIndex = index;
+    const realtime = measurePointRealtimeList[index];
+    document.getElementById('measurePointRealtimeModalTitle').textContent = '编辑测点实时信息';
+
+    const form = document.getElementById('measurePointRealtimeForm');
+    form.point_code.value = realtime.point_code || '';
+    form.point_type_code.value = realtime.point_type_code || '';
+    form.point_type_name.value = realtime.point_type_name || '';
+    form.device_code.value = realtime.device_code || '';
+    form.point_value.value = realtime.point_value || 0;
+    form.point_unit.value = realtime.point_unit || '';
+    form.point_status.value = realtime.point_status || '';
+    form.data_time.value = realtime.data_time || '';
+
+    new bootstrap.Modal(document.getElementById('measurePointRealtimeModal')).show();
+}
+
+function viewRealtimeDetail(pointCode) {
+    const realtime = measurePointRealtimeList.find(r => r.point_code === pointCode);
+    if (!realtime) return;
+
+    const content = `
+        <table class="table table-bordered">
+            <tr><th width="40%">测点编码</th><td>${realtime.point_code || '-'}</td></tr>
+            <tr><th>测点类型编码</th><td>${realtime.point_type_code || '-'}</td></tr>
+            <tr><th>测点类型名称</th><td>${realtime.point_type_name || '-'}</td></tr>
+            <tr><th>所属设备编码</th><td>${realtime.device_code || '-'}</td></tr>
+            <tr><th>测点数值</th><td>${realtime.point_value || 0} ${realtime.point_unit || ''}</td></tr>
+            <tr><th>测点状态</th><td>${realtime.point_status || '-'}</td></tr>
+            <tr><th>数据时间</th><td>${realtime.data_time || '-'}</td></tr>
+        </table>
+    `;
+    document.getElementById('realtimeDetailContent').innerHTML = content;
+    new bootstrap.Modal(document.getElementById('realtimeDetailModal')).show();
+}
+
+async function saveRealtime() {
+    const form = document.getElementById('measurePointRealtimeForm');
+    const formData = new FormData(form);
+
+    const realtime = {
+        point_code: formData.get('point_code'),
+        point_type_code: formData.get('point_type_code') || '',
+        point_type_name: formData.get('point_type_name') || '',
+        device_code: formData.get('device_code') || '',
+        point_value: parseFloat(formData.get('point_value')) || 0,
+        point_unit: formData.get('point_unit') || '',
+        point_status: formData.get('point_status') || '',
+        data_time: formData.get('data_time') || ''
+    };
+
+    try {
+        const url = editingRealtimeIndex !== null ? `/api/measure-point-realtime/${encodeURIComponent(measurePointRealtimeList[editingRealtimeIndex].point_code)}` : '/api/measure-point-realtime';
+        const method = editingRealtimeIndex !== null ? 'PUT' : 'POST';
+
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(realtime)
+        });
+
+        if (response.ok) {
+            showMessage(editingRealtimeIndex !== null ? '测点实时信息已更新' : '测点实时信息已添加', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('measurePointRealtimeModal')).hide();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            const error = await response.json();
+            showMessage(formatError(error.detail) || '保存失败', 'danger');
+        }
+    } catch (error) {
+        showMessage('请求失败: ' + error.message, 'danger');
+    }
+}
+
+async function deleteRealtime(pointCode) {
+    if (!confirm(`确定要删除测点实时信息 "${pointCode}" 吗？`)) return;
+
+    try {
+        const response = await fetch(`/api/measure-point-realtime/${encodeURIComponent(pointCode)}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            showMessage('测点实时信息已删除', 'success');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            const error = await response.json();
+            showMessage(formatError(error.detail) || '删除失败', 'danger');
+        }
+    } catch (error) {
+        showMessage('请求失败: ' + error.message, 'danger');
+    }
+}
+
+function showMessage(message, type) {
+    const container = document.getElementById('message-container');
+    const alertId = 'alert-' + Date.now();
+    container.innerHTML = `
+        <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    setTimeout(() => {
+        const alert = document.getElementById(alertId);
+        if (alert) alert.remove();
+    }, 3000);
+}
+
+function formatError(detail) {
+    if (typeof detail === 'string') return detail;
+    if (detail && detail.message) return detail.message;
+    return null;
+}
+</script>
+{% endblock %}

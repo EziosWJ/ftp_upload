@@ -119,6 +119,34 @@ class SafetyCertInfo(BaseModel):
     certificate_holder: str = Field("", description="持证人")
 
 
+class MeasurePointInfo(BaseModel):
+    """测点基础信息"""
+    point_code: str = Field(..., description="测点编码")
+    point_type_code: str = Field("", description="测点类型编码")
+    point_type_name: str = Field("", description="测点类型名称")
+    device_code: str = Field("", description="所属设备编码")
+    point_location: str = Field("", description="测点位置")
+    unit: str = Field("", description="测量值单位")
+    range_upper: float = Field(0, description="量程上限")
+    range_lower: float = Field(0, description="量程下限")
+    alarm_upper: float = Field(0, description="报警上限")
+    alarm_lower: float = Field(0, description="报警下限")
+    sensor_relation: str = Field("", description="传感器关联关系")
+    data_define_time: str = Field("", description="数据定义时间")
+
+
+class MeasurePointRealtimeInfo(BaseModel):
+    """测点实时信息"""
+    point_code: str = Field(..., description="测点编码")
+    point_type_code: str = Field("", description="测点类型编码")
+    point_type_name: str = Field("", description="测点类型名称")
+    device_code: str = Field("", description="所属设备编码")
+    point_value: float = Field(0, description="测点数值")
+    point_unit: str = Field("", description="测点数值单位")
+    point_status: str = Field("", description="测点状态")
+    data_time: str = Field("", description="数据时间")
+
+
 class FtpConfig(BaseModel):
     """FTP server connection settings."""
     host: str = ""
@@ -143,6 +171,8 @@ class AppConfig(BaseModel):
     devices: list[DeviceConfig] = []
     basic_devices: list[DeviceBasicInfo] = []
     safety_cert_list: list[SafetyCertInfo] = []
+    measure_point_list: list[MeasurePointInfo] = []
+    measure_point_realtime_list: list[MeasurePointRealtimeInfo] = []
     schedules: list[ScheduleConfig] = []
     ftp: FtpConfig = FtpConfig()
     system_info: SystemInfo = SystemInfo()
