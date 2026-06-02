@@ -67,9 +67,18 @@ class DeviceConfig(BaseModel):
     slot: int = 1
     areas: list[S7AreaConfig] = []
 
-    # Device basic info
+
+class ScheduleConfig(BaseModel):
+    """Polling schedule for a device."""
+    device_name: str
+    interval_seconds: int = Field(10, ge=1, description="Polling interval in seconds")
+    enabled: bool = True
+
+
+class DeviceBasicInfo(BaseModel):
+    """Basic device information - separate from device configuration."""
+    device_name: str = Field(..., description="设备名称")
     device_code: str = Field("", description="设备编码")
-    device_name: str = Field("", description="设备名称")
     spec_model: str = Field("", description="规格型号")
     device_category: str = Field("", description="设备类别")
     production_date: str = Field("", description="生产日期")
@@ -83,13 +92,6 @@ class DeviceConfig(BaseModel):
     rated_voltage: str = Field("", description="额定电压")
     rated_current: str = Field("", description="额定电流")
     rated_power: str = Field("", description="额定功率")
-
-
-class ScheduleConfig(BaseModel):
-    """Polling schedule for a device."""
-    device_name: str
-    interval_seconds: int = Field(10, ge=1, description="Polling interval in seconds")
-    enabled: bool = True
 
 
 class FtpConfig(BaseModel):
@@ -114,6 +116,7 @@ class SystemInfo(BaseModel):
 class AppConfig(BaseModel):
     """Top-level application configuration."""
     devices: list[DeviceConfig] = []
+    basic_devices: list[DeviceBasicInfo] = []
     schedules: list[ScheduleConfig] = []
     ftp: FtpConfig = FtpConfig()
     system_info: SystemInfo = SystemInfo()

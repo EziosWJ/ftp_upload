@@ -183,7 +183,7 @@ let registerCount = 0;
 let areaCount = 0;
 
 function showAddModal() {
-    document.getElementById('modalTitle').textContent = '添加设备';
+    document.getElementById('modalTitle').textContent = '添加测点';
     document.getElementById('deviceForm').reset();
     document.getElementById('registers-tbody').innerHTML = '';
     document.getElementById('areas-tbody').innerHTML = '';
@@ -203,7 +203,7 @@ function addRegister() {
     const html = `
         <tr id="register-${registerCount}">
             <td>
-                <div class="small text-muted mb-1">名称</div>
+                <div class="small text-muted mb-1">测点名称</div>
                 <input type="text" class="form-control form-control-sm" placeholder="名称" name="reg_name_${registerCount}">
             </td>
             <td>

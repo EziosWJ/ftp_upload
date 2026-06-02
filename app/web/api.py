@@ -10,7 +10,8 @@ from pydantic import BaseModel
 from ..config import load_config, save_config
 from ..models import (
     AppConfig, DeviceConfig, DeviceType, ScheduleConfig,
-    FtpConfig, ModbusRegisterConfig, S7AreaConfig, DataType, SystemInfo
+    FtpConfig, ModbusRegisterConfig, S7AreaConfig, DataType, SystemInfo,
+    DeviceBasicInfo
 )
 
 router = APIRouter(prefix="/api")
@@ -198,6 +199,60 @@ async def ftp_upload_now():
     uploaded = await upload_pending_files(config.ftp, config.data_dir)
     if uploaded:
         return {"status": "success", "message": f"已上传 {len(uploaded)} 个文件", "files": uploaded}
+
+
+# Device Basic Info API
+@router.get("/basic-devices")
+async def list_basic_devices():
+    """List all basic device info."""
+    config = load_config()
+    return {"basic_devices": [d.model_dump() for d in config.basic_devices]}
+
+
+@router.post("/basic-devices")
+async def add_basic_device(device: DeviceBasicInfo):
+    """Add a new basic device info."""
+    config = load_config()
+
+    # Check for duplicate name
+    if any(d.device_name == device.device_name for d in config.basic_devices):
+        raise HTTPException(status_code=400, detail="设备名称已存在")
+
+    config.basic_devices.append(device)
+    save_config(config)
+    logger.info(f"Added basic device: {device.device_name}")
+    return {"status": "success", "device": device.model_dump()}
+
+
+@router.put("/basic-devices/{device_name}")
+async def update_basic_device(device_name: str, device: DeviceBasicInfo):
+    """Update an existing basic device info."""
+    config = load_config()
+
+    idx = next((i for i, d in enumerate(config.basic_devices) if d.device_name == device_name), None)
+    if idx is None:
+        raise HTTPException(status_code=404, detail="设备不存在")
+
+    config.basic_devices[idx] = device
+    save_config(config)
+    logger.info(f"Updated basic device: {device_name}")
+    return {"status": "success", "device": device.model_dump()}
+
+
+@router.delete("/basic-devices/{device_name}")
+async def delete_basic_device(device_name: str):
+    """Delete a basic device info."""
+    config = load_config()
+
+    original_len = len(config.basic_devices)
+    config.basic_devices = [d for d in config.basic_devices if d.device_name != device_name]
+
+    if len(config.basic_devices) == original_len:
+        raise HTTPException(status_code=404, detail="设备不存在")
+
+    save_config(config)
+    logger.info(f"Deleted basic device: {device_name}")
+    return {"status": "success"}
     return {"status": "success", "message": "没有待上传的文件", "files": []}
 
 
