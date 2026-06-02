@@ -94,6 +94,31 @@ class DeviceBasicInfo(BaseModel):
     rated_power: str = Field("", description="额定功率")
 
 
+class SafetyCertStatus(int, Enum):
+    """安标状态枚举"""
+    VALID = 1      # 有效
+    SUSPENDED = 2  # 暂停
+    CANCELLED = 3  # 注销
+    REVOKED = 4    # 撤销
+
+
+class SafetyCertInfo(BaseModel):
+    """安标证书信息"""
+    device_name: str = Field(..., description="设备名称")
+    product_name: str = Field("", description="产品名称")
+    spec_model: str = Field("", description="规格型号")
+    factory_code: str = Field("", description="出厂编码")
+    cert_no: str = Field("", description="安标证书编号")
+    valid_from: str = Field("", description="安标有效开始时间，格式YYYY-MM-DD")
+    valid_to: str = Field("", description="安标有效结束时间，格式YYYY-MM-DD")
+    cert_status: SafetyCertStatus = Field(SafetyCertStatus.VALID, description="安标状态")
+    production_unit: str = Field("", description="生产单位名称")
+    production_address: str = Field("", description="生产地址")
+    contact_person: str = Field("", description="生产单位联系人")
+    contact_phone: str = Field("", description="生产单位联系电话")
+    certificate_holder: str = Field("", description="持证人")
+
+
 class FtpConfig(BaseModel):
     """FTP server connection settings."""
     host: str = ""
@@ -117,6 +142,7 @@ class AppConfig(BaseModel):
     """Top-level application configuration."""
     devices: list[DeviceConfig] = []
     basic_devices: list[DeviceBasicInfo] = []
+    safety_cert_list: list[SafetyCertInfo] = []
     schedules: list[ScheduleConfig] = []
     ftp: FtpConfig = FtpConfig()
     system_info: SystemInfo = SystemInfo()

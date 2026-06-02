@@ -11,7 +11,7 @@ from ..config import load_config, save_config
 from ..models import (
     AppConfig, DeviceConfig, DeviceType, ScheduleConfig,
     FtpConfig, ModbusRegisterConfig, S7AreaConfig, DataType, SystemInfo,
-    DeviceBasicInfo
+    DeviceBasicInfo, SafetyCertInfo
 )
 
 router = APIRouter(prefix="/api")
@@ -253,7 +253,72 @@ async def delete_basic_device(device_name: str):
     save_config(config)
     logger.info(f"Deleted basic device: {device_name}")
     return {"status": "success"}
-    return {"status": "success", "message": "没有待上传的文件", "files": []}
+
+
+# Safety Certificate Info API
+@router.get("/safety-certs")
+async def list_safety_certs():
+    """List all safety certificate info."""
+    config = load_config()
+    return {"safety_certs": [c.model_dump() for c in config.safety_cert_list]}
+
+
+@router.post("/safety-certs")
+async def add_safety_cert(cert: SafetyCertInfo):
+    """Add a new safety certificate info."""
+    config = load_config()
+
+    # Check for duplicate device_name
+    if any(c.device_name == cert.device_name for c in config.safety_cert_list):
+        raise HTTPException(status_code=400, detail="该设备的安标信息已存在")
+
+    config.safety_cert_list.append(cert)
+    save_config(config)
+    logger.info(f"Added safety cert for device: {cert.device_name}")
+    return {"status": "success", "cert": cert.model_dump()}
+
+
+@router.put("/safety-certs/{device_name}")
+async def update_safety_cert(device_name: str, cert: SafetyCertInfo):
+    """Update an existing safety certificate info."""
+    config = load_config()
+
+    idx = next((i for i, c in enumerate(config.safety_cert_list) if c.device_name == device_name), None)
+    if idx is None:
+        raise HTTPException(status_code=404, detail="安标信息不存在")
+
+    config.safety_cert_list[idx] = cert
+    save_config(config)
+    logger.info(f"Updated safety cert for device: {device_name}")
+    return {"status": "success", "cert": cert.model_dump()}
+
+
+@router.delete("/safety-certs/{device_name}")
+async def delete_safety_cert(device_name: str):
+    """Delete a safety certificate info."""
+    config = load_config()
+
+    original_len = len(config.safety_cert_list)
+    config.safety_cert_list = [c for c in config.safety_cert_list if c.device_name != device_name]
+
+    if len(config.safety_cert_list) == original_len:
+        raise HTTPException(status_code=404, detail="安标信息不存在")
+
+    save_config(config)
+    logger.info(f"Deleted safety cert for device: {device_name}")
+    return {"status": "success"}
+
+
+@router.get("/safety-certs/{device_name}")
+async def get_safety_cert(device_name: str):
+    """Get safety certificate info for a specific device."""
+    config = load_config()
+
+    cert = next((c for c in config.safety_cert_list if c.device_name == device_name), None)
+    if cert is None:
+        raise HTTPException(status_code=404, detail="安标信息不存在")
+
+    return {"cert": cert.model_dump()}
 
 
 @router.post("/ftp/test")

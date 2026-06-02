@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}安标信息 - 工业数据采集系统{% endblock %}
+{% block page_title %}安标信息{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>安标信息列表</h4>
+    <button class="btn btn-primary" onclick="showAddModal()">
+        <i class="bi bi-plus-lg"></i> 添加安标信息
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover" id="safety-cert-table">
+            <thead>
+                <tr>
+                    <th>设备名称</th>
+                    <th>产品名称</th>
+                    <th>规格型号</th>
+                    <th>安标证书编号</th>
+                    <th>安标状态</th>
+                    <th>生产单位</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="safety-cert-list">
+                {% for cert in safety_certs %}
+                <tr id="cert-{{ loop.index }}">
+                    <td>{{ cert.device_name }}</td>
+                    <td>{{ cert.product_name }}</td>
+                    <td>{{ cert.spec_model }}</td>
+                    <td>{{ cert.cert_no }}</td>
+                    <td>
+                        {% if cert.cert_status == 1 %}<span class="badge bg-success">有效</span>
+                        {% elif cert.cert_status == 2 %}<span class="badge bg-warning">暂停</span>
+                        {% elif cert.cert_status == 3 %}<span class="badge bg-secondary">注销</span>
+                        {% elif cert.cert_status == 4 %}<span class="badge bg-danger">撤销</span>
+                        {% else %}<span class="badge bg-secondary">未知</span>{% endif %}
+                    </td>
+                    <td>{{ cert.production_unit }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editSafetyCert({{ loop.index }})">编辑</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteSafetyCert('{{ cert.device_name }}')">删除</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="message-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>
+
+<!-- Add/Edit Safety Certificate Modal -->
+<div class="modal fade" id="safetyCertModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="safetyCertModalTitle">添加安标信息</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="safetyCertForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">设备名称</label>
+                            <input type="text" class="form-control" name="device_name" required placeholder="请输入设备名称">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">产品名称</label>
+                            <input type="text" class="form-control" name="product_name" placeholder="请输入产品名称">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">规格型号</label>
+                            <input type="text" class="form-control" name="spec_model" placeholder="请输入规格型号">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">出厂编码</label>
+                            <input type="text" class="form-control" name="factory_code" placeholder="请输入出厂编码">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">安标证书编号</label>
+                            <input type="text" class="form-control" name="cert_no" placeholder="请输入安标证书编号">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">安标状态</label>
+                            <select class="form-select" name="cert_status">
+                                <option value="1">有效</option>
+                                <option value="2">暂停</option>
+                                <option value="3">注销</option>
+                                <option value="4">撤销</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">安标有效开始时间</label>
+                            <input type="text" class="form-control" name="valid_from" placeholder="格式：YYYY-MM-DD">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">安标有效结束时间</label>
+                            <input type="text" class="form-control" name="valid_to" placeholder="格式：YYYY-MM-DD">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">生产单位名称</label>
+                            <input type="text" class="form-control" name="production_unit" placeholder="请输入生产单位名称">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">生产地址</label>
+                            <input type="text" class="form-control" name="production_address" placeholder="请输入生产地址">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">生产单位联系人</label>
+                            <input type="text" class="form-control" name="contact_person" placeholder="请输入联系人">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">生产单位联系电话</label>
+                            <input type="text" class="form-control" name="contact_phone" placeholder="请输入联系电话">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">持证人</label>
+                            <input type="text" class="form-control" name="certificate_holder" placeholder="请输入持证人">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveSafetyCert()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let editingCertIndex = null;
+const safetyCerts = {{ safety_certs | tojson }};
+
+function showAddModal() {
+    editingCertIndex = null;
+    document.getElementById('safetyCertModalTitle').textContent = '添加安标信息';
+    document.getElementById('safetyCertForm').reset();
+    new bootstrap.Modal(document.getElementById('safetyCertModal')).show();
+}
+
+function editSafetyCert(index) {
+    editingCertIndex = index;
+    const cert = safetyCerts[index];
+    document.getElementById('safetyCertModalTitle').textContent = '编辑安标信息';
+
+    const form = document.getElementById('safetyCertForm');
+    form.device_name.value = cert.device_name || '';
+    form.product_name.value = cert.product_name || '';
+    form.spec_model.value = cert.spec_model || '';
+    form.factory_code.value = cert.factory_code || '';
+    form.cert_no.value = cert.cert_no || '';
+    form.cert_status.value = cert.cert_status || 1;
+    form.valid_from.value = cert.valid_from || '';
+    form.valid_to.value = cert.valid_to || '';
+    form.production_unit.value = cert.production_unit || '';
+    form.production_address.value = cert.production_address || '';
+    form.contact_person.value = cert.contact_person || '';
+    form.contact_phone.value = cert.contact_phone || '';
+    form.certificate_holder.value = cert.certificate_holder || '';
+
+    new bootstrap.Modal(document.getElementById('safetyCertModal')).show();
+}
+
+async function saveSafetyCert() {
+    const form = document.getElementById('safetyCertForm');
+    const formData = new FormData(form);
+
+    const cert = {
+        device_name: formData.get('device_name'),
+        product_name: formData.get('product_name') || '',
+        spec_model: formData.get('spec_model') || '',
+        factory_code: formData.get('factory_code') || '',
+        cert_no: formData.get('cert_no') || '',
+        cert_status: parseInt(formData.get('cert_status')) || 1,
+        valid_from: formData.get('valid_from') || '',
+        valid_to: formData.get('valid_to') || '',
+        production_unit: formData.get('production_unit') || '',
+        production_address: formData.get('production_address') || '',
+        contact_person: formData.get('contact_person') || '',
+        contact_phone: formData.get('contact_phone') || '',
+        certificate_holder: formData.get('certificate_holder') || ''
+    };
+
+    try {
+        const url = editingCertIndex !== null ? `/api/safety-certs/${encodeURIComponent(safetyCerts[editingCertIndex].device_name)}` : '/api/safety-certs';
+        const method = editingCertIndex !== null ? 'PUT' : 'POST';
+
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(cert)
+        });
+
+        if (response.ok) {
+            showMessage(editingCertIndex !== null ? '安标信息已更新' : '安标信息已添加', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('safetyCertModal')).hide();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            const error = await response.json();
+            showMessage(formatError(error.detail) || '保存失败', 'danger');
+        }
+    } catch (error) {
+        showMessage('请求失败: ' + error.message, 'danger');
+    }
+}
+
+async function deleteSafetyCert(deviceName) {
+    if (!confirm(`确定要删除设备 "${deviceName}" 的安标信息吗？`)) return;
+
+    try {
+        const response = await fetch(`/api/safety-certs/${encodeURIComponent(deviceName)}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            showMessage('安标信息已删除', 'success');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            const error = await response.json();
+            showMessage(formatError(error.detail) || '删除失败', 'danger');
+        }
+    } catch (error) {
+        showMessage('请求失败: ' + error.message, 'danger');
+    }
+}
+</script>
+{% endblock %}

@@ -102,3 +102,14 @@ async def device_basic_info_page(request: Request):
         request, "device_basic_info.html",
         {"config": config, "devices": basic_devices_data, "active_page": "device-basic-info"},
     )
+
+
+@router.get("/safety-cert")
+async def safety_cert_page(request: Request):
+    """Safety certificate info page."""
+    config = load_config()
+    safety_certs_data = [c.model_dump() for c in config.safety_cert_list]
+    return templates.TemplateResponse(
+        request, "safety_cert.html",
+        {"config": config, "safety_certs": safety_certs_data, "active_page": "safety-cert"},
+    )
