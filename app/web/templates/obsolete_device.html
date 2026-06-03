@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}淘汰禁用设备 - 工业数据采集系统{% endblock %}
+{% block page_title %}淘汰禁用设备 (JZTT){% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>淘汰禁用设备列表</h4>
+    <button class="btn btn-primary" onclick="showAddModal()">
+        <i class="bi bi-plus-lg"></i> 添加记录
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>产品名称</th>
+                    <th>规格型号</th>
+                    <th>不符合原因</th>
+                    <th>立即禁止</th>
+                    <th>淘汰类别</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="item-list">
+                {% for item in items %}
+                <tr>
+                    <td>{{ item.product_name }}</td>
+                    <td>{{ item.spec_model }}</td>
+                    <td>{{ item.non_compliance_reason[:30] }}{% if item.non_compliance_reason|length > 30 %}...{% endif %}</td>
+                    <td>{% if item.immediate_prohibition == 1 %}是{% else %}否{% endif %}</td>
+                    <td>{{ item.elimination_category }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick='editItem({{ loop.index0 }})'>编辑</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteItem('{{ item.product_name }}')">删除</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if not items %}
+        <p class="text-muted text-center py-3">暂无淘汰禁用设备记录</p>
+        {% endif %}
+    </div>
+</div>
+
+<div id="message-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>
+
+<!-- Modal -->
+<div class="modal fade" id="itemModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">添加淘汰设备</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="itemForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">产品名称 *</label>
+                            <input type="text" class="form-control" name="product_name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">规格型号</label>
+                            <input type="text" class="form-control" name="spec_model">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label">不符合原因</label>
+                            <textarea class="form-control" name="non_compliance_reason" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">是否立即禁止</label>
+                            <select class="form-select" name="immediate_prohibition">
+                                <option value="0">否</option>
+                                <option value="1">是</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">禁止期限</label>
+                            <input type="text" class="form-control" name="prohibition_deadline">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">淘汰类别 (1-4)</label>
+                            <input type="number" class="form-control" name="elimination_category" min="1" max="4">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">公告批次</label>
+                            <input type="text" class="form-control" name="announcement_batch">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">公告日期</label>
+                            <input type="date" class="form-control" name="announcement_date">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">生效日期</label>
+                            <input type="date" class="form-control" name="effective_date">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label">备注</label>
+                            <input type="text" class="form-control" name="remark">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveItem()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let editingIndex = null;
+const items = {{ items | tojson }};
+
+function showMessage(msg, type) {
+    const container = document.getElementById('message-container');
+    const div = document.createElement('div');
+    div.className = `alert alert-${type} alert-dismissible fade show`;
+    div.innerHTML = `${msg}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+    container.appendChild(div);
+    setTimeout(() => div.remove(), 3000);
+}
+
+function showAddModal() {
+    editingIndex = null;
+    document.getElementById('modalTitle').textContent = '添加淘汰设备';
+    document.getElementById('itemForm').reset();
+    new bootstrap.Modal(document.getElementById('itemModal')).show();
+}
+
+function editItem(index) {
+    editingIndex = index;
+    const item = items[index];
+    document.getElementById('modalTitle').textContent = '编辑淘汰设备';
+    const form = document.getElementById('itemForm');
+    form.product_name.value = item.product_name || '';
+    form.spec_model.value = item.spec_model || '';
+    form.non_compliance_reason.value = item.non_compliance_reason || '';
+    form.immediate_prohibition.value = item.immediate_prohibition || 0;
+    form.prohibition_deadline.value = item.prohibition_deadline || '';
+    form.announcement_batch.value = item.announcement_batch || '';
+    form.announcement_date.value = item.announcement_date || '';
+    form.effective_date.value = item.effective_date || '';
+    form.elimination_category.value = item.elimination_category || 0;
+    form.remark.value = item.remark || '';
+    new bootstrap.Modal(document.getElementById('itemModal')).show();
+}
+
+async function saveItem() {
+    const form = document.getElementById('itemForm');
+    const fd = new FormData(form);
+    const data = {
+        product_name: fd.get('product_name'),
+        spec_model: fd.get('spec_model') || '',
+        non_compliance_reason: fd.get('non_compliance_reason') || '',
+        immediate_prohibition: parseInt(fd.get('immediate_prohibition')) || 0,
+        prohibition_deadline: fd.get('prohibition_deadline') || '',
+        announcement_batch: fd.get('announcement_batch') || '',
+        announcement_date: fd.get('announcement_date') || '',
+        effective_date: fd.get('effective_date') || '',
+        elimination_category: parseInt(fd.get('elimination_category')) || 0,
+        remark: fd.get('remark') || ''
+    };
+    try {
+        const url = editingIndex !== null ? `/api/obsolete-devices/${encodeURIComponent(items[editingIndex].product_name)}` : '/api/obsolete-devices';
+        const method = editingIndex !== null ? 'PUT' : 'POST';
+        const resp = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+        if (resp.ok) {
+            showMessage(editingIndex !== null ? '已更新' : '已添加', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            const err = await resp.json();
+            showMessage(err.detail || '保存失败', 'danger');
+        }
+    } catch (e) { showMessage('请求失败: ' + e.message, 'danger'); }
+}
+
+async function deleteItem(name) {
+    if (!confirm(`确定删除 "${name}" 吗？`)) return;
+    try {
+        const resp = await fetch(`/api/obsolete-devices/${encodeURIComponent(name)}`, { method: 'DELETE' });
+        if (resp.ok) { showMessage('已删除', 'success'); setTimeout(() => location.reload(), 500); }
+        else { const err = await resp.json(); showMessage(err.detail || '删除失败', 'danger'); }
+    } catch (e) { showMessage('请求失败: ' + e.message, 'danger'); }
+}
+</script>
+{% endblock %}

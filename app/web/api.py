@@ -11,7 +11,8 @@ from ..config import load_config, save_config
 from ..models import (
     AppConfig, DeviceConfig, ScheduleConfig,
     FtpConfig, ModbusRegisterConfig, S7AreaConfig, DataType, SystemInfo,
-    DeviceBasicInfo, SafetyCertInfo, MeasurePointInfo, MeasurePointRealtimeInfo
+    DeviceBasicInfo, SafetyCertInfo, MeasurePointInfo, MeasurePointRealtimeInfo,
+    ObsoleteDeviceInfo, DeviceTestInfo, AlarmData
 )
 from ..repository import CrudRepository
 
@@ -34,6 +35,18 @@ measure_point_repo = CrudRepository[MeasurePointInfo](
 measure_point_realtime_repo = CrudRepository[MeasurePointRealtimeInfo](
     "measure_point_realtime_list", "point_code", MeasurePointRealtimeInfo,
     not_found_msg="测点实时信息不存在", duplicate_msg="测点实时信息已存在",
+)
+obsolete_device_repo = CrudRepository[ObsoleteDeviceInfo](
+    "obsolete_device_list", "product_name", ObsoleteDeviceInfo,
+    not_found_msg="淘汰设备信息不存在", duplicate_msg="该产品名称已存在",
+)
+device_test_repo = CrudRepository[DeviceTestInfo](
+    "device_test_list", "factory_code", DeviceTestInfo,
+    not_found_msg="检测检验信息不存在", duplicate_msg="该出厂编码已存在",
+)
+alarm_data_repo = CrudRepository[AlarmData](
+    "alarm_data_list", "point_code", AlarmData,
+    not_found_msg="异常数据不存在", duplicate_msg="该测点异常数据已存在",
 )
 
 
@@ -351,6 +364,254 @@ async def get_measure_point_realtime(point_code: str):
     if realtime is None:
         raise HTTPException(status_code=404, detail="测点实时信息不存在")
     return {"realtime": realtime.model_dump()}
+
+
+# Obsolete Device Info API (JZTT)
+@router.get("/obsolete-devices")
+async def list_obsolete_devices():
+    """List all obsolete device info."""
+    return {"obsolete_devices": [d.model_dump() for d in obsolete_device_repo.list()]}
+
+
+@router.post("/obsolete-devices")
+async def add_obsolete_device(device: ObsoleteDeviceInfo):
+    """Add a new obsolete device info."""
+    obsolete_device_repo.add(device)
+    return {"status": "success", "device": device.model_dump()}
+
+
+@router.put("/obsolete-devices/{product_name}")
+async def update_obsolete_device(product_name: str, device: ObsoleteDeviceInfo):
+    """Update an existing obsolete device info."""
+    obsolete_device_repo.update(product_name, device)
+    return {"status": "success", "device": device.model_dump()}
+
+
+@router.delete("/obsolete-devices/{product_name}")
+async def delete_obsolete_device(product_name: str):
+    """Delete an obsolete device info."""
+    obsolete_device_repo.delete(product_name)
+    return {"status": "success"}
+
+
+# Device Test Info API (JCJY)
+@router.get("/device-tests")
+async def list_device_tests():
+    """List all device test info."""
+    return {"device_tests": [d.model_dump() for d in device_test_repo.list()]}
+
+
+@router.post("/device-tests")
+async def add_device_test(test: DeviceTestInfo):
+    """Add a new device test info."""
+    device_test_repo.add(test)
+    return {"status": "success", "test": test.model_dump()}
+
+
+@router.put("/device-tests/{factory_code}")
+async def update_device_test(factory_code: str, test: DeviceTestInfo):
+    """Update an existing device test info."""
+    device_test_repo.update(factory_code, test)
+    return {"status": "success", "test": test.model_dump()}
+
+
+@router.delete("/device-tests/{factory_code}")
+async def delete_device_test(factory_code: str):
+    """Delete a device test info."""
+    device_test_repo.delete(factory_code)
+    return {"status": "success"}
+
+
+# Alarm Data API (YC)
+@router.get("/alarm-data")
+async def list_alarm_data():
+    """List all alarm data."""
+    return {"alarm_data": [d.model_dump() for d in alarm_data_repo.list()]}
+
+
+@router.post("/alarm-data")
+async def add_alarm_data(alarm: AlarmData):
+    """Add a new alarm data entry."""
+    alarm_data_repo.add(alarm)
+    return {"status": "success", "alarm": alarm.model_dump()}
+
+
+@router.put("/alarm-data/{point_code}")
+async def update_alarm_data(point_code: str, alarm: AlarmData):
+    """Update an existing alarm data entry."""
+    alarm_data_repo.update(point_code, alarm)
+    return {"status": "success", "alarm": alarm.model_dump()}
+
+
+@router.delete("/alarm-data/{point_code}")
+async def delete_alarm_data(point_code: str):
+    """Delete an alarm data entry."""
+    alarm_data_repo.delete(point_code)
+    return {"status": "success"}
+
+
+# ──────────── 标准报文生成 (MT/T 1201.2-2023) ────────────
+
+@router.get("/reports/generate/{data_type}")
+async def generate_report(data_type: str):
+    """生成标准格式报文文件并返回内容。
+
+    data_type: jbsj | absj | jztt | jcjy | tfjc | tfss | tfyc | psjc | psss | psyc ...
+    """
+    from ..formatter import (
+        format_jbsj, format_absj, format_jztt, format_jcjy,
+        format_system_jc, format_system_ss, format_system_yc,
+        write_report_file, SYSTEM_MAP,
+    )
+
+    config = load_config()
+
+    formatter_map = {
+        "jbsj": lambda: format_jbsj(config.basic_devices),
+        "absj": lambda: format_absj(config.safety_cert_list),
+        "jztt": lambda: format_jztt(config.obsolete_device_list),
+        "jcjy": lambda: format_jcjy(config.device_test_list),
+    }
+
+    # 六大系统 JC/SS/YC
+    for sys_key, (code, name, short) in SYSTEM_MAP.items():
+        prefix = short.lower()
+        formatter_map[f"{prefix}jc"] = lambda sk=sys_key: format_system_jc(
+            config.measure_point_list, sk
+        )
+        formatter_map[f"{prefix}ss"] = lambda sk=sys_key: format_system_ss(
+            config.measure_point_realtime_list, sk
+        )
+        formatter_map[f"{prefix}yc"] = lambda sk=sys_key: format_system_yc(
+            config.alarm_data_list, sk
+        )
+
+    if data_type not in formatter_map:
+        raise HTTPException(status_code=400, detail=f"不支持的数据类型: {data_type}")
+
+    content = formatter_map[data_type]()
+    file_path = write_report_file(data_type.upper(), content, config.data_dir)
+
+    return {
+        "status": "success",
+        "file": str(file_path),
+        "content": content,
+    }
+
+
+@router.post("/reports/generate-all")
+async def generate_all_reports():
+    """批量生成所有标准报文文件。"""
+    from ..formatter import (
+        format_jbsj, format_absj, format_jztt, format_jcjy,
+        format_system_jc, format_system_ss, format_system_yc,
+        write_report_file, SYSTEM_MAP,
+    )
+
+    config = load_config()
+    files = []
+
+    # 静态数据
+    static_generators = [
+        ("JBSJ", lambda: format_jbsj(config.basic_devices)),
+        ("ABSJ", lambda: format_absj(config.safety_cert_list)),
+        ("JZTT", lambda: format_jztt(config.obsolete_device_list)),
+        ("JCJY", lambda: format_jcjy(config.device_test_list)),
+    ]
+    for name, gen in static_generators:
+        content = gen()
+        fp = write_report_file(name, content, config.data_dir)
+        files.append(str(fp))
+
+    # 六大系统动态数据
+    for sys_key, (code, sys_name, short) in SYSTEM_MAP.items():
+        for suffix, gen in [
+            ("JC", lambda sk=sys_key: format_system_jc(config.measure_point_list, sk)),
+            ("SS", lambda sk=sys_key: format_system_ss(config.measure_point_realtime_list, sk)),
+            ("YC", lambda sk=sys_key: format_system_yc(config.alarm_data_list, sk)),
+        ]:
+            content = gen()
+            fp = write_report_file(f"{short}{suffix}", content, config.data_dir)
+            files.append(str(fp))
+
+    return {"status": "success", "files": files, "count": len(files)}
+
+
+# ──────────── 消息队列上传 (MQ) ────────────
+
+@router.post("/mq/publish/{data_type}")
+async def mq_publish(data_type: str, backend: str = "log"):
+    """通过消息队列发布单个报文。
+
+    backend: log (默认，写入本地文件) | rabbitmq
+    """
+    from ..formatter import (
+        format_jbsj, format_absj, format_jztt, format_jcjy,
+        format_system_jc, format_system_ss, format_system_yc,
+        SYSTEM_MAP,
+    )
+    from ..mq_uploader import create_mq_uploader
+
+    config = load_config()
+
+    formatter_map = {
+        "jbsj": lambda: format_jbsj(config.basic_devices),
+        "absj": lambda: format_absj(config.safety_cert_list),
+        "jztt": lambda: format_jztt(config.obsolete_device_list),
+        "jcjy": lambda: format_jcjy(config.device_test_list),
+    }
+    for sys_key, (code, name, short) in SYSTEM_MAP.items():
+        prefix = short.lower()
+        formatter_map[f"{prefix}jc"] = lambda sk=sys_key: format_system_jc(config.measure_point_list, sk)
+        formatter_map[f"{prefix}ss"] = lambda sk=sys_key: format_system_ss(config.measure_point_realtime_list, sk)
+        formatter_map[f"{prefix}yc"] = lambda sk=sys_key: format_system_yc(config.alarm_data_list, sk)
+
+    if data_type not in formatter_map:
+        raise HTTPException(status_code=400, detail=f"不支持的数据类型: {data_type}")
+
+    content = formatter_map[data_type]()
+    uploader = create_mq_uploader(backend)
+    await uploader.connect()
+    success = await uploader.publish_report(data_type, content)
+    await uploader.disconnect()
+
+    if success:
+        from ..mq_uploader import QUEUE_MAP
+        return {"status": "success", "queue": QUEUE_MAP.get(data_type.lower(), ""), "data_type": data_type}
+    return {"status": "error", "message": "发布失败"}
+
+
+@router.post("/mq/publish-all")
+async def mq_publish_all(backend: str = "log"):
+    """批量发布所有报文到消息队列。"""
+    from ..formatter import (
+        format_jbsj, format_absj, format_jztt, format_jcjy,
+        format_system_jc, format_system_ss, format_system_yc,
+        SYSTEM_MAP,
+    )
+    from ..mq_uploader import create_mq_uploader
+
+    config = load_config()
+    uploader = create_mq_uploader(backend)
+    await uploader.connect()
+
+    reports = {
+        "jbsj": format_jbsj(config.basic_devices),
+        "absj": format_absj(config.safety_cert_list),
+        "jztt": format_jztt(config.obsolete_device_list),
+        "jcjy": format_jcjy(config.device_test_list),
+    }
+    for sys_key, (code, name, short) in SYSTEM_MAP.items():
+        prefix = short.lower()
+        reports[f"{prefix}jc"] = format_system_jc(config.measure_point_list, sys_key)
+        reports[f"{prefix}ss"] = format_system_ss(config.measure_point_realtime_list, sys_key)
+        reports[f"{prefix}yc"] = format_system_yc(config.alarm_data_list, sys_key)
+
+    results = await uploader.publish_all(reports)
+    await uploader.disconnect()
+
+    success_count = sum(1 for v in results.values() if v)
+    return {"status": "success", "published": success_count, "total": len(results), "results": results}
 
 
 @router.post("/ftp/test")

@@ -136,3 +136,50 @@ async def measure_point_realtime_page(request: Request):
         request, "measure_point_realtime.html",
         {"config": config, "measure_point_realtime_list": measure_point_realtime_data, "measure_point_list": measure_points_data, "active_page": "measure-point-realtime"},
     )
+
+
+@router.get("/obsolete-devices")
+async def obsolete_device_page(request: Request):
+    """Obsolete device info page (JZTT)."""
+    config = load_config()
+    items_data = [d.model_dump() for d in config.obsolete_device_list]
+    return templates.TemplateResponse(
+        request, "obsolete_device.html",
+        {"config": config, "items": items_data, "active_page": "obsolete-devices"},
+    )
+
+
+@router.get("/device-tests")
+async def device_test_page(request: Request):
+    """Device test info page (JCJY)."""
+    config = load_config()
+    items_data = [t.model_dump() for t in config.device_test_list]
+    return templates.TemplateResponse(
+        request, "device_test.html",
+        {"config": config, "items": items_data, "active_page": "device-tests"},
+    )
+
+
+@router.get("/alarm-data")
+async def alarm_data_page(request: Request):
+    """Alarm data page (YC)."""
+    config = load_config()
+    items_data = [a.model_dump() for a in config.alarm_data_list]
+    return templates.TemplateResponse(
+        request, "alarm_data.html",
+        {"config": config, "items": items_data, "active_page": "alarm-data"},
+    )
+
+
+@router.get("/reports")
+async def reports_page(request: Request):
+    """Standard report management page (MT/T 1201.2-2023)."""
+    from app.formatter import SYSTEM_MAP
+    systems = [
+        {"name": name, "code": code, "prefix": short.lower()}
+        for sys_key, (code, name, short) in SYSTEM_MAP.items()
+    ]
+    return templates.TemplateResponse(
+        request, "reports.html",
+        {"active_page": "reports", "systems": systems},
+    )

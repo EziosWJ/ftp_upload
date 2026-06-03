@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}设备检测检验 - 工业数据采集系统{% endblock %}
+{% block page_title %}设备检测检验 (JCJY){% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>设备检测检验列表</h4>
+    <button class="btn btn-primary" onclick="showAddModal()">
+        <i class="bi bi-plus-lg"></i> 添加记录
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>出厂编码</th>
+                    <th>设备名称</th>
+                    <th>规格型号</th>
+                    <th>检验编号</th>
+                    <th>检验结论</th>
+                    <th>检验日期</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ item.factory_code }}</td>
+                    <td>{{ item.device_name }}</td>
+                    <td>{{ item.spec_model }}</td>
+                    <td>{{ item.test_no }}</td>
+                    <td>{% if item.test_result == 0 %}<span class="badge bg-success">合格</span>{% else %}<span class="badge bg-danger">不合格</span>{% endif %}</td>
+                    <td>{{ item.test_date }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick='editItem({{ loop.index0 }})'>编辑</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteItem('{{ item.factory_code }}')">删除</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if not items %}
+        <p class="text-muted text-center py-3">暂无检测检验记录</p>
+        {% endif %}
+    </div>
+</div>
+
+<div id="message-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>
+
+<!-- Modal -->
+<div class="modal fade" id="itemModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">添加检测检验</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="itemForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">出厂编码 *</label>
+                            <input type="text" class="form-control" name="factory_code" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">设备名称</label>
+                            <input type="text" class="form-control" name="device_name">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">规格型号</label>
+                            <input type="text" class="form-control" name="spec_model">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">检验编号</label>
+                            <input type="text" class="form-control" name="test_no">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">检验项目</label>
+                            <input type="text" class="form-control" name="test_project">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">检验结论</label>
+                            <select class="form-select" name="test_result">
+                                <option value="0">合格</option>
+                                <option value="1">不合格</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">检验日期</label>
+                            <input type="date" class="form-control" name="test_date">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">检验机构</label>
+                            <input type="text" class="form-control" name="test_agency">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">有效期开始</label>
+                            <input type="date" class="form-control" name="valid_from">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">有效期结束</label>
+                            <input type="date" class="form-control" name="valid_to">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">检验周期（月）</label>
+                            <input type="number" class="form-control" name="test_cycle" min="0">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">联系人</label>
+                            <input type="text" class="form-control" name="contact_person">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">联系电话</label>
+                            <input type="text" class="form-control" name="contact_phone">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">备注</label>
+                            <input type="text" class="form-control" name="remark">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveItem()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let editingIndex = null;
+const items = {{ items | tojson }};
+
+function showMessage(msg, type) {
+    const container = document.getElementById('message-container');
+    const div = document.createElement('div');
+    div.className = `alert alert-${type} alert-dismissible fade show`;
+    div.innerHTML = `${msg}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+    container.appendChild(div);
+    setTimeout(() => div.remove(), 3000);
+}
+
+function showAddModal() {
+    editingIndex = null;
+    document.getElementById('modalTitle').textContent = '添加检测检验';
+    document.getElementById('itemForm').reset();
+    new bootstrap.Modal(document.getElementById('itemModal')).show();
+}
+
+function editItem(index) {
+    editingIndex = index;
+    const item = items[index];
+    document.getElementById('modalTitle').textContent = '编辑检测检验';
+    const form = document.getElementById('itemForm');
+    form.factory_code.value = item.factory_code || '';
+    form.device_name.value = item.device_name || '';
+    form.spec_model.value = item.spec_model || '';
+    form.test_no.value = item.test_no || '';
+    form.test_project.value = item.test_project || '';
+    form.test_result.value = item.test_result || 0;
+    form.test_date.value = item.test_date || '';
+    form.test_agency.value = item.test_agency || '';
+    form.valid_from.value = item.valid_from || '';
+    form.valid_to.value = item.valid_to || '';
+    form.test_cycle.value = item.test_cycle || 0;
+    form.contact_person.value = item.contact_person || '';
+    form.contact_phone.value = item.contact_phone || '';
+    form.remark.value = item.remark || '';
+    new bootstrap.Modal(document.getElementById('itemModal')).show();
+}
+
+async function saveItem() {
+    const form = document.getElementById('itemForm');
+    const fd = new FormData(form);
+    const data = {
+        factory_code: fd.get('factory_code'),
+        device_name: fd.get('device_name') || '',
+        spec_model: fd.get('spec_model') || '',
+        test_no: fd.get('test_no') || '',
+        test_project: fd.get('test_project') || '',
+        test_result: parseInt(fd.get('test_result')) || 0,
+        test_date: fd.get('test_date') || '',
+        test_agency: fd.get('test_agency') || '',
+        valid_from: fd.get('valid_from') || '',
+        valid_to: fd.get('valid_to') || '',
+        test_cycle: parseInt(fd.get('test_cycle')) || 0,
+        contact_person: fd.get('contact_person') || '',
+        contact_phone: fd.get('contact_phone') || '',
+        remark: fd.get('remark') || ''
+    };
+    try {
+        const url = editingIndex !== null ? `/api/device-tests/${encodeURIComponent(items[editingIndex].factory_code)}` : '/api/device-tests';
+        const method = editingIndex !== null ? 'PUT' : 'POST';
+        const resp = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+        if (resp.ok) {
+            showMessage(editingIndex !== null ? '已更新' : '已添加', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('itemModal')).hide();
+            setTimeout(() => location.reload(), 500);
+        } else {
+            const err = await resp.json();
+            showMessage(err.detail || '保存失败', 'danger');
+        }
+    } catch (e) { showMessage('请求失败: ' + e.message, 'danger'); }
+}
+
+async function deleteItem(code) {
+    if (!confirm(`确定删除出厂编码 "${code}" 的记录吗？`)) return;
+    try {
+        const resp = await fetch(`/api/device-tests/${encodeURIComponent(code)}`, { method: 'DELETE' });
+        if (resp.ok) { showMessage('已删除', 'success'); setTimeout(() => location.reload(), 500); }
+        else { const err = await resp.json(); showMessage(err.detail || '删除失败', 'danger'); }
+    } catch (e) { showMessage('请求失败: ' + e.message, 'danger'); }
+}
+</script>
+{% endblock %}

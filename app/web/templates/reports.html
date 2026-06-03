@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}标准报文管理 - 工业数据采集系统{% endblock %}
+{% block page_title %}标准报文管理 (MT/T 1201.2-2023){% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h4>标准报文生成与上传</h4>
+        <p class="text-muted">按 MT/T 1201.2-2023 标准格式生成报文文件，支持 FTP 上传和消息队列发布。</p>
+    </div>
+    <div class="col-md-4 text-end">
+        <button class="btn btn-success" onclick="generateAll()">
+            <i class="bi bi-file-earmark-zip"></i> 批量生成全部
+        </button>
+        <button class="btn btn-info" onclick="publishAllMQ()">
+            <i class="bi bi-send"></i> 批量发布到MQ
+        </button>
+    </div>
+</div>
+
+<!-- 静态基础数据 -->
+<div class="card mb-4">
+    <div class="card-header"><h5 class="mb-0">静态基础数据</h5></div>
+    <div class="card-body">
+        <table class="table table-sm">
+            <thead>
+                <tr><th>类型</th><th>编码</th><th>说明</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>JBSJ</td><td>设备基本信息</td><td>设备编码、名称、规格型号等</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="generate('jbsj')">生成</button>
+                        <button class="btn btn-sm btn-outline-info" onclick="publishMQ('jbsj')">MQ发布</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td>ABSJ</td><td>安标信息</td><td>安标证书编号、有效期、状态等</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="generate('absj')">生成</button>
+                        <button class="btn btn-sm btn-outline-info" onclick="publishMQ('absj')">MQ发布</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td>JZTT</td><td>淘汰禁用设备</td><td>产品名称、不符合原因、淘汰类别等</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="generate('jztt')">生成</button>
+                        <button class="btn btn-sm btn-outline-info" onclick="publishMQ('jztt')">MQ发布</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td>JCYJ</td><td>设备检测检验</td><td>检验编号、结论、机构、有效期等</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="generate('jcjy')">生成</button>
+                        <button class="btn btn-sm btn-outline-info" onclick="publishMQ('jcjy')">MQ发布</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 六大系统动态数据 -->
+<div class="card mb-4">
+    <div class="card-header"><h5 class="mb-0">六大系统动态监控数据</h5></div>
+    <div class="card-body">
+        <table class="table table-sm table-hover">
+            <thead>
+                <tr><th>系统</th><th>编码</th><th>基础 JC</th><th>实时 SS</th><th>异常 YC</th></tr>
+            </thead>
+            <tbody>
+                {% for sys in systems %}
+                <tr>
+                    <td>{{ sys.name }}</td>
+                    <td>{{ sys.code }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="generate('{{ sys.prefix }}jc')">生成</button>
+                        <button class="btn btn-sm btn-outline-info btn-sm" onclick="publishMQ('{{ sys.prefix }}jc')">MQ</button>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="generate('{{ sys.prefix }}ss')">生成</button>
+                        <button class="btn btn-sm btn-outline-info btn-sm" onclick="publishMQ('{{ sys.prefix }}ss')">MQ</button>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="generate('{{ sys.prefix }}yc')">生成</button>
+                        <button class="btn btn-sm btn-outline-info btn-sm" onclick="publishMQ('{{ sys.prefix }}yc')">MQ</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 生成结果 -->
+<div class="card" id="result-card" style="display:none;">
+    <div class="card-header"><h5 class="mb-0">生成结果</h5></div>
+    <div class="card-body">
+        <pre id="result-content" class="bg-light p-3" style="max-height:400px;overflow:auto;font-size:13px;"></pre>
+    </div>
+</div>
+
+<div id="message-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showMessage(msg, type) {
+    const container = document.getElementById('message-container');
+    const div = document.createElement('div');
+    div.className = `alert alert-${type} alert-dismissible fade show`;
+    div.innerHTML = `${msg}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+    container.appendChild(div);
+    setTimeout(() => div.remove(), 4000);
+}
+
+async function generate(type) {
+    try {
+        const resp = await fetch(`/api/reports/generate/${type}`);
+        const data = await resp.json();
+        if (data.status === 'success') {
+            showMessage(`已生成: ${data.file}`, 'success');
+            document.getElementById('result-card').style.display = 'block';
+            document.getElementById('result-content').textContent = data.content;
+        } else {
+            showMessage(data.detail || '生成失败', 'danger');
+        }
+    } catch (e) { showMessage('请求失败: ' + e.message, 'danger'); }
+}
+
+async function generateAll() {
+    try {
+        const resp = await fetch('/api/reports/generate-all', { method: 'POST' });
+        const data = await resp.json();
+        if (data.status === 'success') {
+            showMessage(`批量生成完成: ${data.count} 个文件`, 'success');
+        } else {
+            showMessage(data.detail || '生成失败', 'danger');
+        }
+    } catch (e) { showMessage('请求失败: ' + e.message, 'danger'); }
+}
+
+async function publishMQ(type) {
+    try {
+        const resp = await fetch(`/api/mq/publish/${type}?backend=log`, { method: 'POST' });
+        const data = await resp.json();
+        if (data.status === 'success') {
+            showMessage(`已发布到队列: ${data.queue}`, 'success');
+        } else {
+            showMessage(data.detail || '发布失败', 'danger');
+        }
+    } catch (e) { showMessage('请求失败: ' + e.message, 'danger'); }
+}
+
+async function publishAllMQ() {
+    try {
+        const resp = await fetch('/api/mq/publish-all?backend=log', { method: 'POST' });
+        const data = await resp.json();
+        if (data.status === 'success') {
+            showMessage(`批量发布完成: ${data.published}/${data.total}`, 'success');
+        } else {
+            showMessage(data.detail || '发布失败', 'danger');
+        }
+    } catch (e) { showMessage('请求失败: ' + e.message, 'danger'); }
+}
+</script>
+{% endblock %}

@@ -147,6 +147,55 @@ class MeasurePointRealtimeInfo(BaseModel):
     data_time: str = Field("", description="数据时间")
 
 
+class ObsoleteDeviceInfo(BaseModel):
+    """淘汰禁用设备信息 (JZTT) — MT/T 1201.2-2023"""
+    product_name: str = Field(..., description="产品名称")
+    spec_model: str = Field("", description="规格型号")
+    non_compliance_reason: str = Field("", description="不符合原因")
+    immediate_prohibition: int = Field(0, description="是否立即禁止，1=是")
+    prohibition_deadline: str = Field("", description="禁止期限")
+    announcement_batch: str = Field("", description="公告批次")
+    announcement_date: str = Field("", description="公告日期，格式YYYY-MM-DD")
+    effective_date: str = Field("", description="生效日期，格式YYYY-MM-DD")
+    elimination_category: int = Field(0, description="淘汰类别，1-4")
+    remark: str = Field("", description="备注")
+
+
+class DeviceTestInfo(BaseModel):
+    """设备检测检验信息 (JCJY) — MT/T 1201.2-2023"""
+    factory_code: str = Field(..., description="出厂编码")
+    device_name: str = Field("", description="设备名称")
+    spec_model: str = Field("", description="规格型号")
+    test_no: str = Field("", description="检验编号")
+    test_project: str = Field("", description="检验项目")
+    test_result: int = Field(0, description="检验结论，0=合格/1=不合格")
+    test_date: str = Field("", description="检验日期，格式YYYY-MM-DD")
+    test_agency: str = Field("", description="检验机构")
+    valid_from: str = Field("", description="有效期开始，格式YYYY-MM-DD")
+    valid_to: str = Field("", description="有效期结束，格式YYYY-MM-DD")
+    test_cycle: int = Field(0, description="检验周期（月）")
+    remark: str = Field("", description="备注")
+    contact_person: str = Field("", description="联系人")
+    contact_phone: str = Field("", description="联系电话")
+
+
+class AlarmData(BaseModel):
+    """设备异常/报警数据 (YC) — MT/T 1201.2-2023"""
+    point_code: str = Field(..., description="测点编码")
+    point_type_code: str = Field("", description="测点类型编码")
+    point_name: str = Field("", description="测点名称")
+    device_code: str = Field("", description="设备编码")
+    alarm_status: int = Field(0, description="报警状态，1=报警")
+    alarm_start_time: str = Field("", description="报警开始时间")
+    alarm_end_time: str = Field("", description="报警结束时间")
+    alarm_level: int = Field(0, description="报警等级")
+    recovery_time: str = Field("", description="恢复正常时间")
+    recovery_value: float = Field(0, description="恢复正常值")
+    peak_time: str = Field("", description="最值时间")
+    peak_value: float = Field(0, description="最值")
+    data_time: str = Field("", description="数据时间")
+
+
 class FtpConfig(BaseModel):
     """FTP server connection settings."""
     host: str = ""
@@ -171,8 +220,11 @@ class AppConfig(BaseModel):
     devices: list[DeviceConfig] = []
     basic_devices: list[DeviceBasicInfo] = []
     safety_cert_list: list[SafetyCertInfo] = []
+    obsolete_device_list: list[ObsoleteDeviceInfo] = []
+    device_test_list: list[DeviceTestInfo] = []
     measure_point_list: list[MeasurePointInfo] = []
     measure_point_realtime_list: list[MeasurePointRealtimeInfo] = []
+    alarm_data_list: list[AlarmData] = []
     schedules: list[ScheduleConfig] = []
     ftp: FtpConfig = FtpConfig()
     system_info: SystemInfo = SystemInfo()

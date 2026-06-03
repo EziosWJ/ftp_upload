@@ -1,6 +1,7 @@
 """Async FTP upload module for pushing data files to a remote FTP server."""
 
 import asyncio
+import json
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -13,8 +14,8 @@ from app.models import FtpConfig
 logger = logging.getLogger(__name__)
 
 _upload_task: asyncio.Task | None = None
-_uploaded: set[str] = set()
 _shutdown_event: asyncio.Event | None = None
+_state_file: Path | None = None
 
 # Runtime upload tracking
 _upload_status: dict = {
@@ -22,19 +23,42 @@ _upload_status: dict = {
     "last_upload_time": None,
     "last_upload_files": [],
     "total_uploads": 0,
-    "upload_history:": [],
 }
 _upload_history: list[dict] = []
+
+
+def _load_uploaded_set() -> set[str]:
+    """从持久化文件加载已上传文件列表（断点续传）"""
+    if _state_file and _state_file.exists():
+        try:
+            data = json.loads(_state_file.read_text(encoding="utf-8"))
+            return set(data.get("uploaded", []))
+        except Exception:
+            logger.warning("Failed to load upload state, starting fresh")
+    return set()
+
+
+def _save_uploaded_set(uploaded: set[str]) -> None:
+    """持久化已上传文件列表"""
+    if _state_file:
+        try:
+            _state_file.write_text(
+                json.dumps({"uploaded": list(uploaded)}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+        except Exception:
+            logger.exception("Failed to save upload state")
 
 
 def get_upload_status() -> dict:
     """Return current FTP upload runtime status."""
     config = load_config()
     data_dir = Path(config.data_dir)
+    uploaded = _load_uploaded_set()
     pending_count = 0
     if data_dir.is_dir():
         pending_count = len([
-            p for p in data_dir.glob("*.txt") if p.name not in _uploaded
+            p for p in data_dir.glob("*.txt") if p.name not in uploaded
         ])
     return {
         "running": _upload_task is not None and not _upload_task.done(),
@@ -42,7 +66,7 @@ def get_upload_status() -> dict:
         "last_upload_files": _upload_status["last_upload_files"],
         "total_uploads": _upload_status["total_uploads"],
         "pending_files": pending_count,
-        "history": _upload_history[-20:],  # last 20 entries
+        "history": _upload_history[-20:],
     }
 
 
@@ -82,10 +106,12 @@ async def upload_pending_files(config: FtpConfig, data_dir: str) -> list[str]:
         logger.warning("Data directory '%s' does not exist", data_dir)
         return []
 
+    uploaded_set = _load_uploaded_set()
+
     # Collect .txt files that haven't been uploaded
     pending = [
         p for p in sorted(data_path.glob("*.txt"))
-        if p.name not in _uploaded
+        if p.name not in uploaded_set
     ]
 
     if not pending:
@@ -101,7 +127,6 @@ async def upload_pending_files(config: FtpConfig, data_dir: str) -> list[str]:
             user=config.username or "anonymous",
             password=config.password or "",
         ) as client:
-            # Ensure remote directory exists
             remote_dir = config.remote_dir.rstrip("/")
             try:
                 await client.change_directory(remote_dir)
@@ -120,7 +145,7 @@ async def upload_pending_files(config: FtpConfig, data_dir: str) -> list[str]:
                                 if not chunk:
                                     break
                                 await stream.write(chunk)
-                    _uploaded.add(file_path.name)
+                    uploaded_set.add(file_path.name)
                     uploaded.append(file_path.name)
                     _upload_history.append({
                         "file": file_path.name,
@@ -141,8 +166,9 @@ async def upload_pending_files(config: FtpConfig, data_dir: str) -> list[str]:
     except Exception:
         logger.exception("FTP connection error during upload")
 
-    # Update status
+    # 持久化已上传列表（断点续传）
     if uploaded:
+        _save_uploaded_set(uploaded_set)
         _upload_status["last_upload_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         _upload_status["last_upload_files"] = uploaded
         _upload_status["total_uploads"] += len(uploaded)
@@ -181,7 +207,7 @@ async def _upload_loop() -> None:
 
 async def start_ftp_uploader() -> None:
     """Start the periodic FTP upload background task."""
-    global _upload_task
+    global _upload_task, _state_file
 
     if _upload_task is not None and not _upload_task.done():
         logger.warning("FTP uploader already running")
@@ -191,6 +217,11 @@ async def start_ftp_uploader() -> None:
     if not config.ftp.enabled:
         logger.info("FTP upload is disabled in config")
         return
+
+    # 初始化断点续传状态文件
+    _state_file = Path(config.data_dir) / ".upload_state.json"
+    uploaded_set = _load_uploaded_set()
+    logger.info("Upload state loaded: %d files already uploaded", len(uploaded_set))
 
     _upload_task = asyncio.create_task(_upload_loop())
     _upload_status["running"] = True
