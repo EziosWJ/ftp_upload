@@ -65,3 +65,17 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+---
+
+## 项目说明 (FTP Upload)
+
+工业设备数据采集与上传系统，从 Modbus TCP 和西门子 S7 PLC 设备采集数据，通过 FTP 上传到远程服务器。详见 README.md。
+
+### 启动方式
+```bash
+uv sync          # 安装依赖
+uv run python main.py  # 启动服务
+```
+
+浏览器访问 `http://localhost:8000`
