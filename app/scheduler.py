@@ -1,143 +1,38 @@
-"""APScheduler-based device data collection scheduler."""
+"""APScheduler-based device data collection scheduler.
+
+This module only owns the APScheduler instance and job lifecycle.
+All collection logic lives in DataPipeline; status tracking in DeviceStatusTracker.
+"""
 
 import asyncio
 import logging
 from datetime import datetime
-from pathlib import Path
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from app.collectors.base import DataPoint
-from app.collectors.modbus_collector import ModbusCollector
-from app.collectors.s7_collector import S7Collector
 from app.config import load_config
-from app.models import DeviceConfig, DeviceType
+from app.pipeline import DataPipeline
 
 logger = logging.getLogger(__name__)
 
-# Resolve data directory relative to the project root (parent of app/)
-_PROJECT_ROOT = Path(__file__).parent.parent
-
 _scheduler: AsyncIOScheduler | None = None
-_collectors: dict[str, ModbusCollector | S7Collector] = {}
-
-# Runtime device status tracking
-_device_status: dict[str, dict] = {}
+_pipeline: DataPipeline | None = None
 
 
-def _create_collector(device: DeviceConfig) -> ModbusCollector | S7Collector:
-    """Instantiate the appropriate collector for a device."""
-    if device.device_type == DeviceType.MODBUS_TCP:
-        return ModbusCollector(device)
-    if device.device_type == DeviceType.S7:
-        return S7Collector(device)
-    raise ValueError(f"Unknown device type: {device.device_type}")
-
-
-def _format_datapoints(datapoints: list[DataPoint]) -> str:
-    """Format data points as human-readable lines."""
-    lines = []
-    for dp in datapoints:
-        if dp.quality == "bad":
-            lines.append(f"{dp.name} = <READ_ERROR>")
-        else:
-            unit = f" {dp.unit}" if dp.unit else ""
-            lines.append(f"{dp.name} = {dp.value}{unit}")
-    return "\n".join(lines)
-
-
-def get_device_statuses() -> dict[str, dict]:
-    """Return per-device runtime status for API consumption."""
-    config = load_config()
-    result = {}
-    for device in config.devices:
-        status = _device_status.get(device.name, {})
-        result[device.name] = {
-            "name": device.name,
-            "online": status.get("online", False),
-            "last_success": status.get("last_success"),
-            "last_attempt": status.get("last_attempt"),
-            "consecutive_failures": status.get("consecutive_failures", 0),
-        }
-    return result
-
-
-def _update_device_status(device_name: str, online: bool) -> None:
-    """Record the result of a poll attempt."""
-    now = datetime.now().isoformat()
-    prev = _device_status.get(device_name, {})
-    failures = prev.get("consecutive_failures", 0)
-
-    _device_status[device_name] = {
-        "online": online,
-        "last_attempt": now,
-        "last_success": now if online else prev.get("last_success"),
-        "consecutive_failures": 0 if online else failures + 1,
-    }
-
-
-async def _collect_and_write(device_name: str) -> None:
-    """Async job: connect → poll → write data → disconnect.
-
-    Runs directly on the event loop (AsyncIOScheduler detects the coroutine).
-    Each cycle creates a fresh TCP connection to avoid stale links.
-    """
-    collector = _collectors.get(device_name)
-    if collector is None:
-        logger.error("No collector found for device '%s'", device_name)
-        return
-
-    # Always start with a fresh connection
-    try:
-        await collector.disconnect()
-    except Exception:
-        pass
-
-    connected = await collector.connect()
-    if not connected:
-        _update_device_status(device_name, False)
-        logger.warning("Failed to connect to device '%s', skipping poll", device_name)
-        return
-
-    try:
-        datapoints = await collector.poll()
-    except Exception:
-        _update_device_status(device_name, False)
-        logger.exception("Error polling device '%s'", device_name)
-        datapoints = []
-    finally:
-        try:
-            await collector.disconnect()
-        except Exception:
-            pass
-
-    if not datapoints:
-        _update_device_status(device_name, False)
-        logger.debug("No data points from device '%s'", device_name)
-        return
-
-    _update_device_status(device_name, True)
-
-    config = load_config()
-    data_dir = _PROJECT_ROOT / config.data_dir
-    data_dir.mkdir(parents=True, exist_ok=True)
-
-    file_path = data_dir / f"{device_name}_{datetime.now().strftime('%Y-%m-%d')}.txt"
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    block = f"=== 设备: {device_name} | 时间: {now} ===\n"
-    block += _format_datapoints(datapoints) + "\n"
-
-    try:
-        with open(file_path, "a", encoding="utf-8") as f:
-            f.write(block)
-        logger.info("Wrote %d data points for '%s' to %s", len(datapoints), device_name, file_path)
-    except OSError:
-        logger.exception("Failed to write data file for '%s'", device_name)
+def set_pipeline(pipeline: DataPipeline) -> None:
+    """Inject the DataPipeline instance (called from server startup)."""
+    global _pipeline
+    _pipeline = pipeline
 
 
 async def add_device_job(device_name: str) -> None:
-    """Create a collector and schedule a polling job for a device."""
-    global _collectors
+    """Register a polling job for a device."""
+    if _scheduler is None:
+        logger.error("Scheduler not running")
+        return
+    if _pipeline is None:
+        logger.error("DataPipeline not set")
+        return
 
     config = load_config()
     device = next((d for d in config.devices if d.name == device_name), None)
@@ -150,26 +45,21 @@ async def add_device_job(device_name: str) -> None:
         None,
     )
     if schedule is None:
-        logger.info("No enabled schedule for device '%s', skipping", device_name)
-        return
-
-    if _scheduler is None:
-        logger.error("Scheduler not running")
+        logger.info("No enabled schedule for '%s', skipping", device_name)
         return
 
     # Remove existing job if present
     remove_device_job(device_name)
 
     try:
-        collector = _create_collector(device)
-        _collectors[device_name] = collector
+        _pipeline.add_device(device)
     except ValueError:
         logger.exception("Cannot create collector for '%s'", device_name)
         return
 
     job_id = f"poll_{device_name}"
     _scheduler.add_job(
-        _collect_and_write,
+        _pipeline.poll_device,
         "interval",
         seconds=schedule.interval_seconds,
         args=[device_name],
@@ -193,13 +83,14 @@ def remove_device_job(device_name: str) -> None:
         except LookupError:
             pass
 
-    collector = _collectors.pop(device_name, None)
-    if collector is not None:
-        try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(collector.disconnect())
-        except RuntimeError:
-            asyncio.run(collector.disconnect())
+    if _pipeline is not None:
+        collector = _pipeline.remove_device(device_name)
+        if collector is not None:
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(collector.disconnect())
+            except RuntimeError:
+                asyncio.run(collector.disconnect())
 
 
 async def reload_jobs() -> None:
@@ -210,7 +101,11 @@ async def reload_jobs() -> None:
     active_names = device_names & scheduled_names
 
     # Remove jobs for devices no longer active
-    current_jobs = set(_collectors.keys())
+    if _pipeline is not None:
+        current_jobs = set(_pipeline._collectors.keys())
+    else:
+        current_jobs = set()
+
     for name in current_jobs - active_names:
         remove_device_job(name)
 
@@ -239,6 +134,15 @@ async def start_scheduler() -> None:
 async def stop_scheduler() -> None:
     """Stop the scheduler and disconnect all collectors."""
     global _scheduler
+
+    if _scheduler is None:
+        return
+
+    _scheduler.shutdown(wait=False)
+    _scheduler = None
+
+    if _pipeline is not None:
+        await _pipeline.shutdown()
 
     if _scheduler is None:
         return

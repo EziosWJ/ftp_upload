@@ -9,13 +9,32 @@ from pydantic import BaseModel
 
 from ..config import load_config, save_config
 from ..models import (
-    AppConfig, DeviceConfig, DeviceType, ScheduleConfig,
+    AppConfig, DeviceConfig, ScheduleConfig,
     FtpConfig, ModbusRegisterConfig, S7AreaConfig, DataType, SystemInfo,
     DeviceBasicInfo, SafetyCertInfo, MeasurePointInfo, MeasurePointRealtimeInfo
 )
+from ..repository import CrudRepository
 
 router = APIRouter(prefix="/api")
 logger = logging.getLogger(__name__)
+
+# Repository instances for pure CRUD resources
+basic_device_repo = CrudRepository[DeviceBasicInfo](
+    "basic_devices", "device_name", DeviceBasicInfo,
+    not_found_msg="设备不存在", duplicate_msg="设备名称已存在",
+)
+safety_cert_repo = CrudRepository[SafetyCertInfo](
+    "safety_cert_list", "device_name", SafetyCertInfo,
+    not_found_msg="安标信息不存在", duplicate_msg="该设备的安标信息已存在",
+)
+measure_point_repo = CrudRepository[MeasurePointInfo](
+    "measure_point_list", "point_code", MeasurePointInfo,
+    not_found_msg="测点不存在", duplicate_msg="测点编码已存在",
+)
+measure_point_realtime_repo = CrudRepository[MeasurePointRealtimeInfo](
+    "measure_point_realtime_list", "point_code", MeasurePointRealtimeInfo,
+    not_found_msg="测点实时信息不存在", duplicate_msg="测点实时信息已存在",
+)
 
 
 @router.get("/devices")
@@ -86,14 +105,8 @@ async def test_device(name: str):
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
 
-    from ..collectors.modbus_collector import ModbusCollector
-    from ..collectors.s7_collector import S7Collector
-
-    collector: ModbusCollector | S7Collector
-    if device.device_type == DeviceType.MODBUS_TCP:
-        collector = ModbusCollector(device)
-    else:
-        collector = S7Collector(device)
+    from ..collectors import create_collector
+    collector = create_collector(device)
 
     try:
         ok, logs = await collector.test_with_logs()
@@ -205,53 +218,27 @@ async def ftp_upload_now():
 @router.get("/basic-devices")
 async def list_basic_devices():
     """List all basic device info."""
-    config = load_config()
-    return {"basic_devices": [d.model_dump() for d in config.basic_devices]}
+    return {"basic_devices": [d.model_dump() for d in basic_device_repo.list()]}
 
 
 @router.post("/basic-devices")
 async def add_basic_device(device: DeviceBasicInfo):
     """Add a new basic device info."""
-    config = load_config()
-
-    # Check for duplicate name
-    if any(d.device_name == device.device_name for d in config.basic_devices):
-        raise HTTPException(status_code=400, detail="设备名称已存在")
-
-    config.basic_devices.append(device)
-    save_config(config)
-    logger.info(f"Added basic device: {device.device_name}")
+    basic_device_repo.add(device)
     return {"status": "success", "device": device.model_dump()}
 
 
 @router.put("/basic-devices/{device_name}")
 async def update_basic_device(device_name: str, device: DeviceBasicInfo):
     """Update an existing basic device info."""
-    config = load_config()
-
-    idx = next((i for i, d in enumerate(config.basic_devices) if d.device_name == device_name), None)
-    if idx is None:
-        raise HTTPException(status_code=404, detail="设备不存在")
-
-    config.basic_devices[idx] = device
-    save_config(config)
-    logger.info(f"Updated basic device: {device_name}")
+    basic_device_repo.update(device_name, device)
     return {"status": "success", "device": device.model_dump()}
 
 
 @router.delete("/basic-devices/{device_name}")
 async def delete_basic_device(device_name: str):
     """Delete a basic device info."""
-    config = load_config()
-
-    original_len = len(config.basic_devices)
-    config.basic_devices = [d for d in config.basic_devices if d.device_name != device_name]
-
-    if len(config.basic_devices) == original_len:
-        raise HTTPException(status_code=404, detail="设备不存在")
-
-    save_config(config)
-    logger.info(f"Deleted basic device: {device_name}")
+    basic_device_repo.delete(device_name)
     return {"status": "success"}
 
 
@@ -259,65 +246,36 @@ async def delete_basic_device(device_name: str):
 @router.get("/safety-certs")
 async def list_safety_certs():
     """List all safety certificate info."""
-    config = load_config()
-    return {"safety_certs": [c.model_dump() for c in config.safety_cert_list]}
+    return {"safety_certs": [c.model_dump() for c in safety_cert_repo.list()]}
 
 
 @router.post("/safety-certs")
 async def add_safety_cert(cert: SafetyCertInfo):
     """Add a new safety certificate info."""
-    config = load_config()
-
-    # Check for duplicate device_name
-    if any(c.device_name == cert.device_name for c in config.safety_cert_list):
-        raise HTTPException(status_code=400, detail="该设备的安标信息已存在")
-
-    config.safety_cert_list.append(cert)
-    save_config(config)
-    logger.info(f"Added safety cert for device: {cert.device_name}")
+    safety_cert_repo.add(cert)
     return {"status": "success", "cert": cert.model_dump()}
 
 
 @router.put("/safety-certs/{device_name}")
 async def update_safety_cert(device_name: str, cert: SafetyCertInfo):
     """Update an existing safety certificate info."""
-    config = load_config()
-
-    idx = next((i for i, c in enumerate(config.safety_cert_list) if c.device_name == device_name), None)
-    if idx is None:
-        raise HTTPException(status_code=404, detail="安标信息不存在")
-
-    config.safety_cert_list[idx] = cert
-    save_config(config)
-    logger.info(f"Updated safety cert for device: {device_name}")
+    safety_cert_repo.update(device_name, cert)
     return {"status": "success", "cert": cert.model_dump()}
 
 
 @router.delete("/safety-certs/{device_name}")
 async def delete_safety_cert(device_name: str):
     """Delete a safety certificate info."""
-    config = load_config()
-
-    original_len = len(config.safety_cert_list)
-    config.safety_cert_list = [c for c in config.safety_cert_list if c.device_name != device_name]
-
-    if len(config.safety_cert_list) == original_len:
-        raise HTTPException(status_code=404, detail="安标信息不存在")
-
-    save_config(config)
-    logger.info(f"Deleted safety cert for device: {device_name}")
+    safety_cert_repo.delete(device_name)
     return {"status": "success"}
 
 
 @router.get("/safety-certs/{device_name}")
 async def get_safety_cert(device_name: str):
     """Get safety certificate info for a specific device."""
-    config = load_config()
-
-    cert = next((c for c in config.safety_cert_list if c.device_name == device_name), None)
+    cert = safety_cert_repo.get(device_name)
     if cert is None:
         raise HTTPException(status_code=404, detail="安标信息不存在")
-
     return {"cert": cert.model_dump()}
 
 
@@ -325,65 +283,36 @@ async def get_safety_cert(device_name: str):
 @router.get("/measure-points")
 async def list_measure_points():
     """List all measure point info."""
-    config = load_config()
-    return {"measure_points": [p.model_dump() for p in config.measure_point_list]}
+    return {"measure_points": [p.model_dump() for p in measure_point_repo.list()]}
 
 
 @router.post("/measure-points")
 async def add_measure_point(point: MeasurePointInfo):
     """Add a new measure point info."""
-    config = load_config()
-
-    # Check for duplicate point_code
-    if any(p.point_code == point.point_code for p in config.measure_point_list):
-        raise HTTPException(status_code=400, detail="测点编码已存在")
-
-    config.measure_point_list.append(point)
-    save_config(config)
-    logger.info(f"Added measure point: {point.point_code}")
+    measure_point_repo.add(point)
     return {"status": "success", "point": point.model_dump()}
 
 
 @router.put("/measure-points/{point_code}")
 async def update_measure_point(point_code: str, point: MeasurePointInfo):
     """Update an existing measure point info."""
-    config = load_config()
-
-    idx = next((i for i, p in enumerate(config.measure_point_list) if p.point_code == point_code), None)
-    if idx is None:
-        raise HTTPException(status_code=404, detail="测点不存在")
-
-    config.measure_point_list[idx] = point
-    save_config(config)
-    logger.info(f"Updated measure point: {point_code}")
+    measure_point_repo.update(point_code, point)
     return {"status": "success", "point": point.model_dump()}
 
 
 @router.delete("/measure-points/{point_code}")
 async def delete_measure_point(point_code: str):
     """Delete a measure point info."""
-    config = load_config()
-
-    original_len = len(config.measure_point_list)
-    config.measure_point_list = [p for p in config.measure_point_list if p.point_code != point_code]
-
-    if len(config.measure_point_list) == original_len:
-        raise HTTPException(status_code=404, detail="测点不存在")
-
-    save_config(config)
-    logger.info(f"Deleted measure point: {point_code}")
+    measure_point_repo.delete(point_code)
     return {"status": "success"}
 
 
 @router.get("/measure-points/{point_code}")
 async def get_measure_point(point_code: str):
     """Get measure point info for a specific point."""
-    config = load_config()
-
-    point = next((p for p in config.measure_point_list if p.point_code == point_code), None)
+    point = measure_point_repo.get(point_code)
     if point is None:
         raise HTTPException(status_code=404, detail="测点不存在")
-
     return {"point": point.model_dump()}
 
 
@@ -391,65 +320,36 @@ async def get_measure_point(point_code: str):
 @router.get("/measure-point-realtime")
 async def get_measure_point_realtime_list():
     """Get all measure point realtime info."""
-    config = load_config()
-    return {"list": [p.model_dump() for p in config.measure_point_realtime_list]}
+    return {"list": [p.model_dump() for p in measure_point_realtime_repo.list()]}
 
 
 @router.post("/measure-point-realtime")
 async def add_measure_point_realtime(realtime: MeasurePointRealtimeInfo):
     """Add a new measure point realtime info."""
-    config = load_config()
-
-    existing = next((p for p in config.measure_point_realtime_list if p.point_code == realtime.point_code), None)
-    if existing:
-        raise HTTPException(status_code=400, detail="测点实时信息已存在")
-
-    config.measure_point_realtime_list.append(realtime)
-    save_config(config)
-    logger.info(f"Added measure point realtime: {realtime.point_code}")
+    measure_point_realtime_repo.add(realtime)
     return {"status": "success", "realtime": realtime.model_dump()}
 
 
 @router.put("/measure-point-realtime/{point_code}")
 async def update_measure_point_realtime(point_code: str, realtime: MeasurePointRealtimeInfo):
     """Update an existing measure point realtime info."""
-    config = load_config()
-
-    idx = next((i for i, p in enumerate(config.measure_point_realtime_list) if p.point_code == point_code), None)
-    if idx is None:
-        raise HTTPException(status_code=404, detail="测点实时信息不存在")
-
-    config.measure_point_realtime_list[idx] = realtime
-    save_config(config)
-    logger.info(f"Updated measure point realtime: {point_code}")
+    measure_point_realtime_repo.update(point_code, realtime)
     return {"status": "success", "realtime": realtime.model_dump()}
 
 
 @router.delete("/measure-point-realtime/{point_code}")
 async def delete_measure_point_realtime(point_code: str):
     """Delete a measure point realtime info."""
-    config = load_config()
-
-    original_len = len(config.measure_point_realtime_list)
-    config.measure_point_realtime_list = [p for p in config.measure_point_realtime_list if p.point_code != point_code]
-
-    if len(config.measure_point_realtime_list) == original_len:
-        raise HTTPException(status_code=404, detail="测点实时信息不存在")
-
-    save_config(config)
-    logger.info(f"Deleted measure point realtime: {point_code}")
+    measure_point_realtime_repo.delete(point_code)
     return {"status": "success"}
 
 
 @router.get("/measure-point-realtime/{point_code}")
 async def get_measure_point_realtime(point_code: str):
     """Get measure point realtime info for a specific point."""
-    config = load_config()
-
-    realtime = next((p for p in config.measure_point_realtime_list if p.point_code == point_code), None)
+    realtime = measure_point_realtime_repo.get(point_code)
     if realtime is None:
         raise HTTPException(status_code=404, detail="测点实时信息不存在")
-
     return {"realtime": realtime.model_dump()}
 
 
@@ -484,9 +384,9 @@ async def update_system_info(system_info: SystemInfo):
 @router.get("/status")
 async def system_status():
     """Get system status."""
-    from ..scheduler import get_device_statuses
+    from ..server import get_pipeline
     config = load_config()
-    device_statuses = get_device_statuses()
+    device_statuses = get_pipeline().get_device_statuses()
     online_count = sum(1 for s in device_statuses.values() if s["online"])
     return {
         "devices": {
@@ -509,8 +409,8 @@ async def system_status():
 @router.get("/device-status")
 async def device_statuses():
     """Get per-device online/offline status."""
-    from ..scheduler import get_device_statuses
-    return get_device_statuses()
+    from ..server import get_pipeline
+    return get_pipeline().get_device_statuses()
 
 
 @router.get("/logs")

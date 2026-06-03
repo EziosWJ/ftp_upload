@@ -11,72 +11,76 @@
 <body>
     <div class="d-flex">
         <!-- Sidebar -->
-        <nav class="sidebar bg-dark text-white" style="width: 250px; min-height: 100vh;">
+        <nav class="sidebar bg-dark text-white" id="sidebar">
             <div class="p-3">
-                <h5 class="text-center mb-4">
-                    <i class="bi bi-gear-fill"></i> 数据采集系统
+                <h5 class="sidebar-title text-center mb-4">
+                    <i class="bi bi-gear-fill"></i> <span class="sidebar-text">数据采集系统</span>
                 </h5>
                 <ul class="nav flex-column">
                     <li class="nav-item">
-                        <a class="nav-link text-white {% if active_page == 'dashboard' %}active{% endif %}" href="/">
-                            <i class="bi bi-speedometer2"></i> 仪表盘
+                        <a class="nav-link text-white {% if active_page == 'dashboard' %}active{% endif %}" href="/" data-tooltip="仪表盘">
+                            <i class="bi bi-speedometer2"></i> <span class="sidebar-text">仪表盘</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white {% if active_page == 'device-basic-info' %}active{% endif %}" href="/device-basic-info">
-                            <i class="bi bi-info-square"></i> 设备基本信息
+                        <a class="nav-link text-white {% if active_page == 'device-basic-info' %}active{% endif %}" href="/device-basic-info" data-tooltip="设备基本信息">
+                            <i class="bi bi-info-square"></i> <span class="sidebar-text">设备基本信息</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white {% if active_page == 'safety-cert' %}active{% endif %}" href="/safety-cert">
-                            <i class="bi bi-shield-check"></i> 安标信息
+                        <a class="nav-link text-white {% if active_page == 'safety-cert' %}active{% endif %}" href="/safety-cert" data-tooltip="安标信息">
+                            <i class="bi bi-shield-check"></i> <span class="sidebar-text">安标信息</span>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white sidebar-submenu-toggle {% if active_page in ['devices', 'measure-point'] %}active{% endif %}" href="#" onclick="toggleSidebarSubmenu(this); return false;">
-                            <i class="bi bi-hdd-rack"></i> 测点管理
-                            <i class="bi bi-chevron-right float-end"></i>
+                    <li class="nav-item has-submenu">
+                        <a class="nav-link text-white sidebar-submenu-toggle {% if active_page in ['devices', 'measure-point', 'measure-point-realtime'] %}active{% endif %}" href="#" data-tooltip="测点管理" onclick="toggleSidebarSubmenu(this); return false;">
+                            <i class="bi bi-hdd-rack"></i> <span class="sidebar-text">测点管理</span>
+                            <i class="bi bi-chevron-right float-end sidebar-text"></i>
                         </a>
                         <ul class="nav flex-column sidebar-submenu" style="display: none;">
                             <li>
-                                <a class="nav-link text-white ps-4 {% if active_page == 'devices' %}active{% endif %}" href="/devices">
-                                    <i class="bi bi-diagram-3"></i> 测点管理
+                                <a class="nav-link text-white ps-4 {% if active_page == 'devices' %}active{% endif %}" href="/devices" data-tooltip="测点管理">
+                                    <i class="bi bi-diagram-3"></i> <span class="sidebar-text">测点管理</span>
                                 </a>
                             </li>
                             <li>
-                                <a class="nav-link text-white ps-4 {% if active_page == 'measure-point' %}active{% endif %}" href="/measure-point">
-                                    <i class="bi bi-geo-alt"></i> 测点基础信息
+                                <a class="nav-link text-white ps-4 {% if active_page == 'measure-point' %}active{% endif %}" href="/measure-point" data-tooltip="测点基础信息">
+                                    <i class="bi bi-geo-alt"></i> <span class="sidebar-text">测点基础信息</span>
                                 </a>
                             </li>
                             <li>
-                                <a class="nav-link text-white ps-4 {% if active_page == 'measure-point-realtime' %}active{% endif %}" href="/measure-point-realtime">
-                                    <i class="bi bi-activity"></i> 测点实时信息
+                                <a class="nav-link text-white ps-4 {% if active_page == 'measure-point-realtime' %}active{% endif %}" href="/measure-point-realtime" data-tooltip="测点实时信息">
+                                    <i class="bi bi-activity"></i> <span class="sidebar-text">测点实时信息</span>
                                 </a>
                             </li>
                         </ul>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white {% if active_page == 'schedules' %}active{% endif %}" href="/schedules">
-                            <i class="bi bi-clock"></i> 采集计划
+                        <a class="nav-link text-white {% if active_page == 'schedules' %}active{% endif %}" href="/schedules" data-tooltip="采集计划">
+                            <i class="bi bi-clock"></i> <span class="sidebar-text">采集计划</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white {% if active_page == 'ftp' %}active{% endif %}" href="/ftp">
-                            <i class="bi bi-cloud-upload"></i> FTP配置
+                        <a class="nav-link text-white {% if active_page == 'ftp' %}active{% endif %}" href="/ftp" data-tooltip="FTP配置">
+                            <i class="bi bi-cloud-upload"></i> <span class="sidebar-text">FTP配置</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white {% if active_page == 'logs' %}active{% endif %}" href="/logs">
-                            <i class="bi bi-journal-text"></i> 系统日志
+                        <a class="nav-link text-white {% if active_page == 'logs' %}active{% endif %}" href="/logs" data-tooltip="系统日志">
+                            <i class="bi bi-journal-text"></i> <span class="sidebar-text">系统日志</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white {% if active_page == 'system-info' %}active{% endif %}" href="/system-info">
-                            <i class="bi bi-info-circle"></i> 系统信息
+                        <a class="nav-link text-white {% if active_page == 'system-info' %}active{% endif %}" href="/system-info" data-tooltip="系统信息">
+                            <i class="bi bi-info-circle"></i> <span class="sidebar-text">系统信息</span>
                         </a>
                     </li>
                 </ul>
             </div>
+            <!-- Sidebar toggle button -->
+            <button class="sidebar-toggle-btn" id="sidebarToggle" onclick="toggleSidebar()">
+                <i class="bi bi-chevron-left" id="sidebarToggleIcon"></i>
+            </button>
         </nav>
 
         <!-- Main content -->
@@ -124,7 +128,42 @@
         setTimeout(() => alert.remove(), 5000);
     }
 
+    // ── Sidebar collapse ──────────────────────────────────────
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebarToggleIcon = document.getElementById('sidebarToggleIcon');
+
+    function setSidebarCollapsed(collapsed) {
+        if (collapsed) {
+            sidebar.classList.add('collapsed');
+            sidebarToggleIcon.classList.remove('bi-chevron-left');
+            sidebarToggleIcon.classList.add('bi-chevron-right');
+        } else {
+            sidebar.classList.remove('collapsed');
+            sidebarToggleIcon.classList.remove('bi-chevron-right');
+            sidebarToggleIcon.classList.add('bi-chevron-left');
+            // Remove any lingering hover popup
+            document.querySelectorAll('.sidebar-submenu-popup').forEach(el => el.remove());
+        }
+        localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
+    }
+
+    function toggleSidebar() {
+        setSidebarCollapsed(!sidebar.classList.contains('collapsed'));
+    }
+
+    // Restore state from localStorage
+    (function() {
+        if (localStorage.getItem('sidebar-collapsed') === '1') {
+            sidebar.classList.add('collapsed');
+            sidebarToggleIcon.classList.remove('bi-chevron-left');
+            sidebarToggleIcon.classList.add('bi-chevron-right');
+        }
+    })();
+
+    // ── Submenu toggle (expanded mode) ────────────────────────
     function toggleSidebarSubmenu(element) {
+        if (sidebar.classList.contains('collapsed')) return; // handled by hover popup
         const submenu = element.nextElementSibling;
         const chevron = element.querySelector('.bi-chevron-right');
         const isOpen = submenu.style.display !== 'none';
@@ -140,8 +179,44 @@
         }
     }
 
-    // Auto-expand submenu if current page is active
+    // ── Hover popup for submenus (collapsed mode) ─────────────
+    function attachSubmenuHover() {
+        document.querySelectorAll('.nav-item.has-submenu').forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                if (!sidebar.classList.contains('collapsed')) return;
+                // Remove existing popups
+                document.querySelectorAll('.sidebar-submenu-popup').forEach(el => el.remove());
+
+                const toggle = item.querySelector('.sidebar-submenu-toggle');
+                const links = item.querySelectorAll('.sidebar-submenu .nav-link');
+                const rect = toggle.getBoundingClientRect();
+
+                const popup = document.createElement('ul');
+                popup.className = 'sidebar-submenu-popup';
+                links.forEach(link => {
+                    const li = document.createElement('li');
+                    const a = document.createElement('a');
+                    a.href = link.href;
+                    a.textContent = link.getAttribute('data-tooltip') || link.textContent.trim();
+                    if (link.classList.contains('active')) a.classList.add('active');
+                    li.appendChild(a);
+                    popup.appendChild(li);
+                });
+
+                popup.style.top = rect.top + 'px';
+                popup.style.left = (rect.right + 4) + 'px';
+                document.body.appendChild(popup);
+
+                popup.addEventListener('mouseleave', function() {
+                    popup.remove();
+                });
+            });
+        });
+    }
+
+    // ── Init ──────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', function() {
+        // Auto-expand submenu if current page is active
         const activeSubmenu = document.querySelector('.sidebar-submenu .nav-link.active');
         if (activeSubmenu) {
             const submenu = activeSubmenu.parentElement.parentElement;
@@ -153,6 +228,8 @@
                 chevron.classList.add('bi-chevron-down');
             }
         }
+        // Attach hover popup handlers
+        attachSubmenuHover();
     });
     </script>
     {% block scripts %}{% endblock %}

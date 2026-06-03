@@ -8,8 +8,10 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from .config import load_config, save_config
-from .scheduler import start_scheduler, stop_scheduler
+from .config import load_config
+from .scheduler import start_scheduler, stop_scheduler, set_pipeline
+from .status_tracker import DeviceStatusTracker
+from .pipeline import DataPipeline
 from .ftp_uploader import start_ftp_uploader, stop_ftp_uploader
 
 BASE_DIR = Path(__file__).parent.parent
@@ -17,6 +19,15 @@ STATIC_DIR = Path(__file__).parent / "web" / "static"
 TEMPLATES_DIR = Path(__file__).parent / "web" / "templates"
 
 logger = logging.getLogger(__name__)
+
+_pipeline: DataPipeline | None = None
+
+
+def get_pipeline() -> DataPipeline:
+    """Accessor for the DataPipeline instance (used by API endpoints)."""
+    if _pipeline is None:
+        raise RuntimeError("DataPipeline not initialized")
+    return _pipeline
 
 
 @asynccontextmanager
@@ -41,6 +52,12 @@ async def lifespan(app: FastAPI):
     data_dir = BASE_DIR / config.data_dir
     data_dir.mkdir(parents=True, exist_ok=True)
 
+    # Wire up DataPipeline and inject into scheduler
+    global _pipeline
+    status_tracker = DeviceStatusTracker()
+    _pipeline = DataPipeline(status_tracker=status_tracker)
+    set_pipeline(_pipeline)
+
     # Start scheduler and FTP uploader
     await start_scheduler()
     await start_ftp_uploader()
@@ -52,6 +69,7 @@ async def lifespan(app: FastAPI):
     logger.info("Application shutting down...")
     await stop_ftp_uploader()
     await stop_scheduler()
+    await _pipeline.shutdown()
     logger.info("Shutdown complete")
 
 

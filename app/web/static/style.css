@@ -198,9 +198,18 @@
         min-height: auto;
     }
 
+    .sidebar.collapsed {
+        width: 60px !important;
+        min-height: 100vh;
+    }
+
     .sidebar .nav-link {
         display: inline-block;
         margin: 5px;
+    }
+
+    .sidebar.collapsed .nav-link {
+        display: flex;
     }
 }
 
@@ -309,4 +318,165 @@
 
 ::-webkit-scrollbar-thumb:hover {
     background: #555;
+}
+
+/* ── Sidebar collapse / expand ───────────────────────────── */
+.sidebar {
+    width: 250px;
+    min-height: 100vh;
+    position: relative;
+    transition: width 0.3s ease;
+}
+
+/* Prevent text wrapping during width transition */
+.sidebar .nav-link {
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.sidebar.collapsed {
+    width: 60px;
+}
+
+/* Hide text elements when collapsed */
+.sidebar .sidebar-text {
+    display: inline;
+    white-space: nowrap;
+    transition: opacity 0.2s ease;
+}
+
+.sidebar.collapsed .sidebar-text {
+    display: none;
+}
+
+/* Center icons in collapsed mode */
+.sidebar .nav-link {
+    display: flex;
+    align-items: center;
+}
+
+.sidebar.collapsed .nav-link {
+    justify-content: center;
+    padding: 12px 0;
+    margin: 2px 5px;
+}
+
+.sidebar.collapsed .nav-link i:first-child {
+    margin-right: 0;
+}
+
+/* Hide submenu toggle chevron when collapsed */
+.sidebar.collapsed .sidebar-submenu-toggle .bi-chevron-right,
+.sidebar.collapsed .sidebar-submenu-toggle .bi-chevron-down {
+    display: none;
+}
+
+/* Hide submenu when collapsed (hover popup used instead) */
+.sidebar.collapsed .sidebar-submenu {
+    display: none !important;
+}
+
+/* Title styling */
+.sidebar-title {
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.sidebar.collapsed .sidebar-title {
+    font-size: 0;
+    padding: 0;
+    margin-bottom: 0.5rem !important;
+}
+
+.sidebar.collapsed .sidebar-title .bi-gear-fill {
+    font-size: 1.2rem;
+}
+
+/* ── Toggle button (right edge of sidebar) ─────────────── */
+.sidebar-toggle-btn {
+    position: absolute;
+    right: -20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 48px;
+    z-index: 1050;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-left: none;
+    border-radius: 0 6px 6px 0;
+    background: #2b3035;
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.sidebar-toggle-btn:hover {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+}
+
+.sidebar-toggle-btn i {
+    font-size: 0.7rem;
+}
+
+/* ── Hover tooltip (collapsed mode) ────────────────────── */
+.sidebar.collapsed .nav-link[data-tooltip] {
+    position: relative;
+}
+
+.sidebar.collapsed .nav-link[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 8px;
+    background: rgba(0,0,0,0.85);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    z-index: 1060;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* ── Hover popup submenu (collapsed mode) ──────────────── */
+.sidebar-submenu-popup {
+    position: fixed;
+    background: #2b3035;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px;
+    padding: 6px 0;
+    margin: 0;
+    list-style: none;
+    z-index: 1070;
+    min-width: 160px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.sidebar-submenu-popup li a {
+    display: block;
+    padding: 8px 16px;
+    color: rgba(255,255,255,0.85);
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: background-color 0.15s ease;
+    white-space: nowrap;
+}
+
+.sidebar-submenu-popup li a:hover {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+}
+
+.sidebar-submenu-popup li a.active {
+    background: rgba(255,255,255,0.2);
+    font-weight: bold;
+    color: #fff;
 }

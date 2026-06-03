@@ -17,3 +17,8 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 include = ["app*"]
+
+[dependency-groups]
+dev = [
+    "pymupdf>=1.27.2.3",
+]
