@@ -24,7 +24,8 @@ from app.formatter import (
 )
 from app.models import (
     AlarmData, DeviceConfig, DeviceWithRegisters, MeasurePointInfo,
-    MeasurePointRealtimeInfo, RegisterPoint, ScheduleType, UploadTask,
+    MeasurePointRealtimeInfo, ModbusRegisterConfig, RegisterPoint,
+    S7AreaConfig, ScheduleType, UploadTask, DeviceType,
 )
 from app.upload_config import load_upload_config
 
@@ -96,8 +97,6 @@ async def _collect_from_plc(
     temp_device = copy.deepcopy(device)
 
     # 根据设备类型构造临时寄存器列表
-    from .models import DeviceType, ModbusRegisterConfig, S7AreaConfig
-
     if device.device_type == DeviceType.MODBUS_TCP:
         temp_registers = []
         for reg in registers:
