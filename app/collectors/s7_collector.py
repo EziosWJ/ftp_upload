@@ -304,8 +304,15 @@ class S7Collector(BaseCollector):
             return snap7.util.get_real(data, 0)
 
         if dtype == DataType.FLOAT64:
-            # snap7 has no get_lreal util in 3.0.0; use struct (little-endian for S7)
-            return struct.unpack_from("<d", data, 0)[0]
+            # snap7 has no get_lreal util in 3.0.0; use struct (big-endian for S7)
+            return struct.unpack_from(">d", data, 0)[0]
+
+        if dtype == DataType.STRING:
+            # S7 STRING: 前2字节是头部（最大长度、实际长度），后面是数据
+            if len(data) >= 2:
+                actual_len = data[1]
+                return data[2:2 + actual_len].decode('ascii', errors='replace')
+            return data.decode('ascii', errors='replace')
 
         raise ValueError(f"Unsupported data type for decoding: {dtype}")
 
@@ -352,7 +359,17 @@ class S7Collector(BaseCollector):
 
         if dtype == DataType.FLOAT64:
             buf = bytearray(8)
-            struct.pack_into("<d", buf, 0, float(value))
+            struct.pack_into(">d", buf, 0, float(value))
+            return buf
+
+        if dtype == DataType.STRING:
+            # S7 STRING: 前2字节头部 + 数据
+            s = str(value).encode('ascii', errors='replace')
+            max_len = max(len(s), cfg.size - 2) if cfg.size > 2 else len(s)
+            buf = bytearray(max_len + 2)
+            buf[0] = max_len  # 最大长度
+            buf[1] = len(s)   # 实际长度
+            buf[2:2 + len(s)] = s
             return buf
 
         raise ValueError(f"Unsupported data type for encoding: {dtype}")

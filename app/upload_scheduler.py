@@ -84,27 +84,55 @@ async def _collect_from_plc(
     registers: list[RegisterPoint],
 ) -> dict[str, float]:
     """从 PLC 采集指定寄存器的值，返回 {point_code: value}"""
+    import copy
+
     config = load_config()
     device = next((d for d in config.devices if d.name == plc_device_name), None)
     if device is None:
         logger.error("PLC device '%s' not found", plc_device_name)
         return {}
 
-    # 构造一个临时的 DeviceConfig，只包含需要采集的寄存器
-    temp_registers = []
-    for reg in registers:
-        temp_registers.append({
-            "name": reg.point_code,
-            "address": int(reg.register_address) if reg.register_address.isdigit() else 0,
-            "count": 1,
-            "data_type": reg.data_type.value,
-            "scale": 1.0,
-            "offset": 0.0,
-            "unit": reg.unit,
-        })
+    # 深拷贝设备配置，避免污染原始配置
+    temp_device = copy.deepcopy(device)
 
-    # 使用现有的采集器
-    collector = create_collector(device)
+    # 根据设备类型构造临时寄存器列表
+    from .models import DeviceType, ModbusRegisterConfig, S7AreaConfig
+
+    if device.device_type == DeviceType.MODBUS_TCP:
+        temp_registers = []
+        for reg in registers:
+            # Modbus 地址：直接转整数
+            try:
+                addr = int(reg.register_address)
+            except (ValueError, TypeError):
+                logger.warning("Invalid Modbus address '%s' for '%s', skipping",
+                               reg.register_address, reg.point_code)
+                continue
+            temp_registers.append(ModbusRegisterConfig(
+                name=reg.point_code,
+                address=addr,
+                count=1,
+                data_type=reg.data_type,
+                scale=1.0,
+                offset=0.0,
+                unit=reg.unit,
+            ))
+        temp_device.registers = temp_registers
+
+    elif device.device_type == DeviceType.S7:
+        temp_areas = []
+        for reg in registers:
+            # S7 地址格式：DB1.DBW0 或 M10.0 或 I0.0 等
+            area_cfg = _parse_s7_address(reg.register_address, reg)
+            if area_cfg:
+                temp_areas.append(area_cfg)
+            else:
+                logger.warning("Invalid S7 address '%s' for '%s', skipping",
+                               reg.register_address, reg.point_code)
+        temp_device.areas = temp_areas
+
+    # 使用临时配置创建采集器
+    collector = create_collector(temp_device)
     try:
         connected = await collector.connect()
         if not connected:
@@ -128,6 +156,75 @@ async def _collect_from_plc(
         return {}
     finally:
         await collector.disconnect()
+
+
+def _parse_s7_address(address: str, reg: RegisterPoint) -> S7AreaConfig | None:
+    """解析 S7 地址字符串，返回 S7AreaConfig
+
+    支持格式：
+      - DB1.DBW0   (DB 区域，字地址)
+      - DB1.DBX0.0 (DB 区域，位地址)
+      - M10        (M 区域，字节地址)
+      - M10.0      (M 区域，位地址)
+      - I0         (输入区域)
+      - Q0         (输出区域)
+    """
+    import re
+    from .models import S7AreaConfig, DataType
+
+    if not address:
+        return None
+
+    address = address.strip().upper()
+
+    # DB 格式：DB1.DBW0 或 DB1.DBD0 或 DB1.DBX0.0
+    db_match = re.match(r'DB(\d+)\.DB([XWDL])(\d+)(?:\.(\d+))?', address)
+    if db_match:
+        db_num = int(db_match.group(1))
+        area_type = db_match.group(2)
+        byte_addr = int(db_match.group(3))
+        bit_off = int(db_match.group(4)) if db_match.group(4) is not None else None
+
+        # 根据类型确定大小
+        size_map = {'X': 1, 'W': 2, 'D': 4, 'L': 8}
+        size = size_map.get(area_type, 2)
+
+        return S7AreaConfig(
+            name=reg.point_code,
+            area='DB',
+            db_number=db_num,
+            start=byte_addr,
+            size=size,
+            data_type=reg.data_type,
+            bit_offset=bit_off,
+            scale=1.0,
+            offset=0.0,
+            unit=reg.unit,
+        )
+
+    # M/I/Q 格式：M10 或 M10.0 或 I0.0
+    io_match = re.match(r'([MIQ])(\d+)(?:\.(\d+))?', address)
+    if io_match:
+        area_letter = io_match.group(1)
+        byte_addr = int(io_match.group(2))
+        bit_off = int(io_match.group(3)) if io_match.group(3) is not None else None
+
+        area_map = {'M': 'M', 'I': 'I', 'Q': 'Q'}
+
+        return S7AreaConfig(
+            name=reg.point_code,
+            area=area_map[area_letter],
+            db_number=0,
+            start=byte_addr,
+            size=2,  # 默认读 2 字节
+            data_type=reg.data_type,
+            bit_offset=bit_off,
+            scale=1.0,
+            offset=0.0,
+            unit=reg.unit,
+        )
+
+    return None
 
 
 # ──────────────── 报文生成执行 ────────────────
