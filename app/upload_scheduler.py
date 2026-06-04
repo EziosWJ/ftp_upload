@@ -82,8 +82,8 @@ def generate_file_name(task: UploadTask, data_type_label: str, system_name: str 
 async def _collect_from_plc(
     plc_device_name: str,
     registers: list[RegisterPoint],
-) -> dict[str, float]:
-    """从 PLC 采集指定寄存器的值，返回 {point_code: value}"""
+) -> dict[str, tuple[float, datetime]]:
+    """从 PLC 采集指定寄存器的值，返回 {point_code: (value, timestamp)}"""
     import copy
 
     config = load_config()
@@ -101,7 +101,6 @@ async def _collect_from_plc(
     if device.device_type == DeviceType.MODBUS_TCP:
         temp_registers = []
         for reg in registers:
-            # Modbus 地址：直接转整数
             try:
                 addr = int(reg.register_address)
             except (ValueError, TypeError):
@@ -122,7 +121,6 @@ async def _collect_from_plc(
     elif device.device_type == DeviceType.S7:
         temp_areas = []
         for reg in registers:
-            # S7 地址格式：DB1.DBW0 或 M10.0 或 I0.0 等
             area_cfg = _parse_s7_address(reg.register_address, reg)
             if area_cfg:
                 temp_areas.append(area_cfg)
@@ -143,12 +141,11 @@ async def _collect_from_plc(
         result = {}
         for dp in datapoints:
             if dp.quality == "good":
-                result[dp.name] = dp.value
+                result[dp.name] = (dp.value, dp.timestamp)
             else:
-                # 找到对应的故障缺省值
                 for reg in registers:
                     if reg.point_code == dp.name:
-                        result[dp.name] = reg.fault_default
+                        result[dp.name] = (reg.fault_default, datetime.now())
                         break
         return result
     except Exception:
@@ -298,6 +295,7 @@ async def _execute_dynamic_task(task: UploadTask, config, upload_cfg) -> None:
                 if reg.report_enabled:
                     all_points.append(MeasurePointInfo(
                         point_code=reg.point_code,
+                        point_type_code=reg.point_type_code,
                         point_type_name=reg.point_name,
                         device_code=dev.device_code,
                         unit=reg.unit,
@@ -317,15 +315,22 @@ async def _execute_dynamic_task(task: UploadTask, config, upload_cfg) -> None:
                 continue
             values = await _collect_from_plc(dev.plc_device, enabled_regs)
             for reg in enabled_regs:
-                val = values.get(reg.point_code, reg.fault_default)
+                if reg.point_code in values:
+                    val, ts = values[reg.point_code]
+                    status = "good"
+                else:
+                    val = reg.fault_default
+                    ts = datetime.now()
+                    status = "fault"
                 all_points.append(MeasurePointRealtimeInfo(
                     point_code=reg.point_code,
+                    point_type_code=reg.point_type_code,
                     point_type_name=reg.point_name,
                     device_code=dev.device_code,
                     point_value=val,
                     point_unit=reg.unit,
-                    point_status="good" if val != reg.fault_default else "fault",
-                    data_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    point_status=status,
+                    data_time=ts.strftime("%Y-%m-%d %H:%M:%S"),
                 ))
         content = format_system_ss(all_points, system_code)
 

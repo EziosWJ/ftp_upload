@@ -189,9 +189,15 @@
             </div>
             <div class="modal-body">
                 <form id="registerForm">
-                    <div class="mb-3">
-                        <label class="form-label">名称 <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="reg_name" required placeholder="如 temperature_1">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">名称 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="reg_name" required placeholder="如 temperature_1">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">类型编码</label>
+                            <input type="text" class="form-control" name="reg_type_code" placeholder="如 TEMP, PRESS">
+                        </div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-6">
@@ -365,6 +371,7 @@ function editRegister(index) {
 
     const form = document.getElementById('registerForm');
     form.reg_name.value = reg.name || '';
+    form.reg_type_code.value = reg.data_type || '';
     form.reg_address.value = reg.address || 0;
     form.reg_count.value = reg.count || 1;
     form.reg_data_type.value = reg.data_type || 'uint16';
@@ -386,6 +393,7 @@ function saveRegister() {
 
     const reg = {
         name: name,
+        type_code: form.reg_type_code.value || '',
         address: parseInt(form.reg_address.value) || 0,
         count: parseInt(form.reg_count.value) || 1,
         data_type: form.reg_data_type.value,

@@ -250,6 +250,7 @@ class RegisterPoint(BaseModel):
     """上传配置中的寄存器测点"""
     point_code: str = Field(..., description="测点编码")
     point_name: str = Field("", description="测点名称")
+    point_type_code: str = Field("", description="测点类型编码")
     register_address: str = Field("", description="寄存器地址（如 DB1.DBW0 或 40001）")
     data_type: DataType = DataType.FLOAT32
     range_upper: float = Field(0, description="量程上限")
