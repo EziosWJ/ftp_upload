@@ -592,16 +592,19 @@ function renderDynamicItems() {
             <strong>${s.name}</strong> (${s.code})
             <div class="ms-3">
                 ${['JC', 'SS', 'YC'].map(type => `
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" id="dyn-${s.code}-${type}"
-                               onchange="toggleDynamicTask('${s.code}', '${type}', this.checked)"
-                               ${uploadConfig.tasks.some(t => t.task_id === `${s.code}_${type}`) ? 'checked' : ''}>
-                        <label class="form-check-label" for="dyn-${s.code}-${type}">${type}</label>
+                    <div class="d-flex align-items-center mb-1">
+                        <div class="form-check me-2">
+                            <input class="form-check-input" type="checkbox" id="dyn-${s.code}-${type}"
+                                   onchange="toggleDynamicTask('${s.code}', '${type}', this.checked)"
+                                   ${uploadConfig.tasks.some(t => t.task_id === `${s.code}_${type}`) ? 'checked' : ''}>
+                            <label class="form-check-label" for="dyn-${s.code}-${type}">${type}</label>
+                        </div>
+                        <button class="btn btn-sm btn-outline-info py-0 px-1" style="font-size:12px"
+                                onclick="selectSystemRegister('${s.code}', '${type}')">
+                            数据选择
+                        </button>
                     </div>
                 `).join('')}
-                <button class="btn btn-sm btn-outline-secondary ms-2" onclick="selectSystem('${s.code}')">
-                    数据选择
-                </button>
             </div>
         </div>
     `).join('');
@@ -695,6 +698,16 @@ function getScheduleDesc(task) {
 function selectSystem(code) {
     document.getElementById('system-select').value = code;
     loadSystemDevices();
+}
+
+function selectSystemRegister(systemCode, dataType) {
+    // 先切换到对应系统
+    document.getElementById('system-select').value = systemCode;
+    currentSystem = systemCode;
+    loadSystemDevices();
+    // 滚动到右侧寄存器配置区域
+    document.querySelector('.col-md-7').scrollIntoView({ behavior: 'smooth' });
+    showMessage(`已切换到 ${systemCode} 系统，可配置 ${dataType} 数据的寄存器`, 'info');
 }
 
 function showAddTaskModal() {
