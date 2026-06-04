@@ -16,26 +16,58 @@
         <table class="table table-hover" id="measure-point-table">
             <thead>
                 <tr>
+                    <th style="width:30px;"></th>
                     <th>测点编码</th>
-                    <th>测点类型编码</th>
                     <th>测点类型名称</th>
+                    <th>PLC名称</th>
                     <th>所属设备编码</th>
                     <th>测点位置</th>
+                    <th>寄存器数</th>
                     <th>操作</th>
                 </tr>
             </thead>
             <tbody id="measure-point-list">
                 {% for point in measure_points %}
-                <tr id="point-{{ loop.index }}">
+                <tr class="point-row" style="cursor:pointer" onclick="toggleRegisters({{ loop.index0 }})">
+                    <td><i class="bi bi-chevron-right" id="arrow-{{ loop.index0 }}"></i></td>
                     <td>{{ point.point_code }}</td>
-                    <td>{{ point.point_type_code }}</td>
                     <td>{{ point.point_type_name }}</td>
+                    <td>{{ point.plc_name or '-' }}</td>
                     <td>{{ point.device_code }}</td>
                     <td>{{ point.point_location }}</td>
-                    <td>
+                    <td><span class="badge bg-info">{{ point.registers | length }}</span></td>
+                    <td onclick="event.stopPropagation()">
                         <button class="btn btn-sm btn-outline-primary" onclick="editPoint({{ loop.index0 }})">编辑</button>
-                        <button class="btn btn-sm btn-outline-info btn-sm" onclick="viewPointDetail('{{ point.point_code }}')">详情</button>
+                        <button class="btn btn-sm btn-outline-info" onclick="viewPointDetail('{{ point.point_code }}')">详情</button>
                         <button class="btn btn-sm btn-outline-danger" onclick="deletePoint('{{ point.point_code }}')">删除</button>
+                    </td>
+                </tr>
+                <tr class="register-detail" id="register-detail-{{ loop.index0 }}" style="display:none;">
+                    <td colspan="8" class="p-0">
+                        <div class="bg-light p-3 ms-4 me-4 mb-2 rounded">
+                            <h6 class="mb-2">寄存器列表</h6>
+                            {% if point.registers %}
+                            <table class="table table-sm table-bordered mb-0">
+                                <thead class="table-secondary">
+                                    <tr>
+                                        <th>名称</th><th>地址</th><th>数量</th><th>数据类型</th>
+                                        <th>缩放因子</th><th>偏移量</th><th>单位</th><th>可写</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for reg in point.registers %}
+                                    <tr>
+                                        <td>{{ reg.name }}</td><td>{{ reg.address }}</td><td>{{ reg.count }}</td>
+                                        <td>{{ reg.data_type }}</td><td>{{ reg.scale }}</td><td>{{ reg.offset }}</td>
+                                        <td>{{ reg.unit or '-' }}</td><td>{{ '✓' if reg.writable else '✗' }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            {% else %}
+                            <p class="text-muted mb-0">暂无寄存器配置</p>
+                            {% endif %}
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -48,7 +80,7 @@
 
 <!-- Add/Edit Measure Point Modal -->
 <div class="modal fade" id="measurePointModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="measurePointModalTitle">添加测点</h5>
@@ -56,66 +88,87 @@
             </div>
             <div class="modal-body">
                 <form id="measurePointForm">
+                    <h6 class="mb-3 text-primary">基本信息</h6>
                     <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">测点编码</label>
+                        <div class="col-md-4">
+                            <label class="form-label">测点编码 <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" name="point_code" required placeholder="请输入测点编码">
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label">测点类型编码</label>
-                            <input type="text" class="form-control" name="point_type_code" placeholder="请输入测点类型编码">
+                        <div class="col-md-4">
+                            <label class="form-label">PLC名称</label>
+                            <input type="text" class="form-control" name="plc_name" placeholder="关联的PLC设备名称">
                         </div>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">测点类型名称</label>
-                            <input type="text" class="form-control" name="point_type_name" placeholder="请输入测点类型名称">
-                        </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label">所属设备编码</label>
-                            <input type="text" class="form-control" name="device_code" placeholder="请输入所属设备编码">
+                            <input type="text" class="form-control" name="device_code" placeholder="所属设备编码">
                         </div>
                     </div>
                     <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">测点位置</label>
-                            <input type="text" class="form-control" name="point_location" placeholder="请输入测点位置">
+                        <div class="col-md-4">
+                            <label class="form-label">测点类型编码</label>
+                            <input type="text" class="form-control" name="point_type_code" placeholder="测点类型编码">
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
+                            <label class="form-label">测点类型名称</label>
+                            <input type="text" class="form-control" name="point_type_name" placeholder="测点类型名称">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">测点位置</label>
+                            <input type="text" class="form-control" name="point_location" placeholder="测点位置">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-3">
                             <label class="form-label">测量值单位</label>
                             <input type="text" class="form-control" name="unit" placeholder="如：°C, %, Pa">
                         </div>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">量程上限</label>
-                            <input type="number" class="form-control" name="range_upper" placeholder="请输入量程上限">
-                        </div>
-                        <div class="col-md-6">
+                        <div class="col-md-3">
                             <label class="form-label">量程下限</label>
-                            <input type="number" class="form-control" name="range_lower" placeholder="请输入量程下限">
+                            <input type="number" class="form-control" name="range_lower" step="any" value="0">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">量程上限</label>
+                            <input type="number" class="form-control" name="range_upper" step="any" value="100">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">传感器关联</label>
+                            <input type="text" class="form-control" name="sensor_relation" placeholder="传感器关联关系">
                         </div>
                     </div>
                     <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">报警上限</label>
-                            <input type="number" class="form-control" name="alarm_upper" placeholder="请输入报警上限">
-                        </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label">报警下限</label>
-                            <input type="number" class="form-control" name="alarm_lower" placeholder="请输入报警下限">
+                            <input type="number" class="form-control" name="alarm_lower" step="any" value="0">
                         </div>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">传感器关联关系</label>
-                            <input type="text" class="form-control" name="sensor_relation" placeholder="请输入传感器关联关系">
+                        <div class="col-md-4">
+                            <label class="form-label">报警上限</label>
+                            <input type="number" class="form-control" name="alarm_upper" step="any" value="100">
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label">数据定义时间</label>
-                            <input type="text" class="form-control" name="data_define_time" placeholder="格式：YYYY-MM-DD">
+                            <input type="text" class="form-control" name="data_define_time" placeholder="YYYY-MM-DD">
                         </div>
                     </div>
+
+                    <hr>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0 text-primary">寄存器配置</h6>
+                        <button type="button" class="btn btn-sm btn-success" onclick="showAddRegister()">
+                            <i class="bi bi-plus"></i> 添加寄存器
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered" id="register-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>名称</th><th>地址</th><th>数量</th><th>数据类型</th>
+                                    <th>缩放因子</th><th>偏移量</th><th>单位</th><th>可写</th><th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="register-list-body"></tbody>
+                        </table>
+                    </div>
+                    <p class="text-muted small" id="no-register-hint">暂无寄存器，点击上方按钮添加</p>
                 </form>
             </div>
             <div class="modal-footer">
@@ -126,16 +179,82 @@
     </div>
 </div>
 
+<!-- Register Edit Modal (nested) -->
+<div class="modal fade" id="registerModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="registerModalTitle">添加寄存器</h5>
+                <button type="button" class="btn-close" onclick="closeRegisterModal()"></button>
+            </div>
+            <div class="modal-body">
+                <form id="registerForm">
+                    <div class="mb-3">
+                        <label class="form-label">名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="reg_name" required placeholder="如 temperature_1">
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">寄存器地址 <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="reg_address" required placeholder="0-based 地址">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">数量</label>
+                            <input type="number" class="form-control" name="reg_count" value="1" min="1">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">数据类型</label>
+                            <select class="form-select" name="reg_data_type">
+                                <option value="int16">INT16</option>
+                                <option value="uint16" selected>UINT16</option>
+                                <option value="int32">INT32</option>
+                                <option value="uint32">UINT32</option>
+                                <option value="float32">FLOAT32</option>
+                                <option value="float64">FLOAT64</option>
+                                <option value="bool">BOOL</option>
+                                <option value="string">STRING</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">单位</label>
+                            <input type="text" class="form-control" name="reg_unit" placeholder="如 °C, %">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">缩放因子</label>
+                            <input type="number" class="form-control" name="reg_scale" step="any" value="1.0">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">偏移量</label>
+                            <input type="number" class="form-control" name="reg_offset" step="any" value="0.0">
+                        </div>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="reg_writable" id="reg_writable">
+                        <label class="form-check-label" for="reg_writable">可写</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeRegisterModal()">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveRegister()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Point Detail Modal -->
 <div class="modal fade" id="pointDetailModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">测点详细信息</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" id="pointDetailContent">
-            </div>
+            <div class="modal-body" id="pointDetailContent"></div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
             </div>
@@ -147,12 +266,30 @@
 {% block scripts %}
 <script>
 let editingPointIndex = null;
+let editingRegisterIndex = null;
+let currentRegisters = [];
 const measurePoints = {{ measure_points | tojson }};
 
+// ──────────── 二级表格展开/折叠 ────────────
+function toggleRegisters(index) {
+    const detailRow = document.getElementById(`register-detail-${index}`);
+    const arrow = document.getElementById(`arrow-${index}`);
+    if (detailRow.style.display === 'none') {
+        detailRow.style.display = '';
+        arrow.className = 'bi bi-chevron-down';
+    } else {
+        detailRow.style.display = 'none';
+        arrow.className = 'bi bi-chevron-right';
+    }
+}
+
+// ──────────── 测点弹窗 ────────────
 function showAddModal() {
     editingPointIndex = null;
+    currentRegisters = [];
     document.getElementById('measurePointModalTitle').textContent = '添加测点';
     document.getElementById('measurePointForm').reset();
+    renderRegisterTable();
     new bootstrap.Modal(document.getElementById('measurePointModal')).show();
 }
 
@@ -174,34 +311,112 @@ function editPoint(index) {
     form.alarm_lower.value = point.alarm_lower || 0;
     form.sensor_relation.value = point.sensor_relation || '';
     form.data_define_time.value = point.data_define_time || '';
+    form.plc_name.value = point.plc_name || '';
 
+    currentRegisters = JSON.parse(JSON.stringify(point.registers || []));
+    renderRegisterTable();
     new bootstrap.Modal(document.getElementById('measurePointModal')).show();
 }
 
-function viewPointDetail(pointCode) {
-    const point = measurePoints.find(p => p.point_code === pointCode);
-    if (!point) return;
+// ──────────── 寄存器管理 ────────────
+function renderRegisterTable() {
+    const tbody = document.getElementById('register-list-body');
+    const hint = document.getElementById('no-register-hint');
 
-    const content = `
-        <table class="table table-bordered">
-            <tr><th width="40%">测点编码</th><td>${point.point_code || '-'}</td></tr>
-            <tr><th>测点类型编码</th><td>${point.point_type_code || '-'}</td></tr>
-            <tr><th>测点类型名称</th><td>${point.point_type_name || '-'}</td></tr>
-            <tr><th>所属设备编码</th><td>${point.device_code || '-'}</td></tr>
-            <tr><th>测点位置</th><td>${point.point_location || '-'}</td></tr>
-            <tr><th>测量值单位</th><td>${point.unit || '-'}</td></tr>
-            <tr><th>量程上限</th><td>${point.range_upper || 0}</td></tr>
-            <tr><th>量程下限</th><td>${point.range_lower || 0}</td></tr>
-            <tr><th>报警上限</th><td>${point.alarm_upper || 0}</td></tr>
-            <tr><th>报警下限</th><td>${point.alarm_lower || 0}</td></tr>
-            <tr><th>传感器关联关系</th><td>${point.sensor_relation || '-'}</td></tr>
-            <tr><th>数据定义时间</th><td>${point.data_define_time || '-'}</td></tr>
-        </table>
-    `;
-    document.getElementById('pointDetailContent').innerHTML = content;
-    new bootstrap.Modal(document.getElementById('pointDetailModal')).show();
+    if (currentRegisters.length === 0) {
+        tbody.innerHTML = '';
+        hint.style.display = '';
+        return;
+    }
+
+    hint.style.display = 'none';
+    tbody.innerHTML = currentRegisters.map((reg, i) => `
+        <tr>
+            <td>${reg.name}</td>
+            <td>${reg.address}</td>
+            <td>${reg.count}</td>
+            <td>${reg.data_type}</td>
+            <td>${reg.scale}</td>
+            <td>${reg.offset}</td>
+            <td>${reg.unit || '-'}</td>
+            <td>${reg.writable ? '✓' : '✗'}</td>
+            <td>
+                <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="editRegister(${i})">编辑</button>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteRegister(${i})">删除</button>
+            </td>
+        </tr>
+    `).join('');
 }
 
+function showAddRegister() {
+    editingRegisterIndex = null;
+    document.getElementById('registerModalTitle').textContent = '添加寄存器';
+    document.getElementById('registerForm').reset();
+    document.getElementById('registerForm').reg_count.value = '1';
+    document.getElementById('registerForm').reg_scale.value = '1.0';
+    document.getElementById('registerForm').reg_offset.value = '0.0';
+    new bootstrap.Modal(document.getElementById('registerModal')).show();
+}
+
+function editRegister(index) {
+    editingRegisterIndex = index;
+    const reg = currentRegisters[index];
+    document.getElementById('registerModalTitle').textContent = '编辑寄存器';
+
+    const form = document.getElementById('registerForm');
+    form.reg_name.value = reg.name || '';
+    form.reg_address.value = reg.address || 0;
+    form.reg_count.value = reg.count || 1;
+    form.reg_data_type.value = reg.data_type || 'uint16';
+    form.reg_unit.value = reg.unit || '';
+    form.reg_scale.value = reg.scale || 1.0;
+    form.reg_offset.value = reg.offset || 0.0;
+    form.reg_writable.checked = reg.writable || false;
+
+    new bootstrap.Modal(document.getElementById('registerModal')).show();
+}
+
+function saveRegister() {
+    const form = document.getElementById('registerForm');
+    const name = form.reg_name.value.trim();
+    if (!name) {
+        showMessage('请输入寄存器名称', 'warning');
+        return;
+    }
+
+    const reg = {
+        name: name,
+        address: parseInt(form.reg_address.value) || 0,
+        count: parseInt(form.reg_count.value) || 1,
+        data_type: form.reg_data_type.value,
+        unit: form.reg_unit.value || '',
+        scale: parseFloat(form.reg_scale.value) || 1.0,
+        offset: parseFloat(form.reg_offset.value) || 0.0,
+        writable: form.reg_writable.checked,
+    };
+
+    if (editingRegisterIndex !== null) {
+        currentRegisters[editingRegisterIndex] = reg;
+    } else {
+        currentRegisters.push(reg);
+    }
+
+    renderRegisterTable();
+    closeRegisterModal();
+}
+
+function deleteRegister(index) {
+    if (!confirm('确定删除该寄存器？')) return;
+    currentRegisters.splice(index, 1);
+    renderRegisterTable();
+}
+
+function closeRegisterModal() {
+    bootstrap.Modal.getInstance(document.getElementById('registerModal'))?.hide();
+    document.body.classList.add('modal-open');
+}
+
+// ──────────── 保存测点 ────────────
 async function savePoint() {
     const form = document.getElementById('measurePointForm');
     const formData = new FormData(form);
@@ -218,11 +433,15 @@ async function savePoint() {
         alarm_upper: parseFloat(formData.get('alarm_upper')) || 0,
         alarm_lower: parseFloat(formData.get('alarm_lower')) || 0,
         sensor_relation: formData.get('sensor_relation') || '',
-        data_define_time: formData.get('data_define_time') || ''
+        data_define_time: formData.get('data_define_time') || '',
+        plc_name: formData.get('plc_name') || '',
+        registers: currentRegisters,
     };
 
     try {
-        const url = editingPointIndex !== null ? `/api/measure-points/${encodeURIComponent(measurePoints[editingPointIndex].point_code)}` : '/api/measure-points';
+        const url = editingPointIndex !== null
+            ? `/api/measure-points/${encodeURIComponent(measurePoints[editingPointIndex].point_code)}`
+            : '/api/measure-points';
         const method = editingPointIndex !== null ? 'PUT' : 'POST';
 
         const response = await fetch(url, {
@@ -244,6 +463,53 @@ async function savePoint() {
     }
 }
 
+// ──────────── 详情 ────────────
+function viewPointDetail(pointCode) {
+    const point = measurePoints.find(p => p.point_code === pointCode);
+    if (!point) return;
+
+    let regTable = '<p class="text-muted">暂无寄存器配置</p>';
+    if (point.registers && point.registers.length > 0) {
+        regTable = `
+            <table class="table table-sm table-bordered">
+                <thead class="table-secondary">
+                    <tr><th>名称</th><th>地址</th><th>数量</th><th>数据类型</th><th>缩放</th><th>偏移</th><th>单位</th><th>可写</th></tr>
+                </thead>
+                <tbody>
+                    ${point.registers.map(r => `
+                        <tr>
+                            <td>${r.name}</td><td>${r.address}</td><td>${r.count}</td>
+                            <td>${r.data_type}</td><td>${r.scale}</td><td>${r.offset}</td>
+                            <td>${r.unit || '-'}</td><td>${r.writable ? '✓' : '✗'}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    const content = `
+        <table class="table table-bordered mb-3">
+            <tr><th width="30%">测点编码</th><td>${point.point_code || '-'}</td></tr>
+            <tr><th>PLC名称</th><td>${point.plc_name || '-'}</td></tr>
+            <tr><th>测点类型编码</th><td>${point.point_type_code || '-'}</td></tr>
+            <tr><th>测点类型名称</th><td>${point.point_type_name || '-'}</td></tr>
+            <tr><th>所属设备编码</th><td>${point.device_code || '-'}</td></tr>
+            <tr><th>测点位置</th><td>${point.point_location || '-'}</td></tr>
+            <tr><th>测量值单位</th><td>${point.unit || '-'}</td></tr>
+            <tr><th>量程</th><td>${point.range_lower || 0} ~ ${point.range_upper || 0}</td></tr>
+            <tr><th>报警</th><td>${point.alarm_lower || 0} ~ ${point.alarm_upper || 0}</td></tr>
+            <tr><th>传感器关联</th><td>${point.sensor_relation || '-'}</td></tr>
+            <tr><th>数据定义时间</th><td>${point.data_define_time || '-'}</td></tr>
+        </table>
+        <h6>寄存器配置</h6>
+        ${regTable}
+    `;
+    document.getElementById('pointDetailContent').innerHTML = content;
+    new bootstrap.Modal(document.getElementById('pointDetailModal')).show();
+}
+
+// ──────────── 删除测点 ────────────
 async function deletePoint(pointCode) {
     if (!confirm(`确定要删除测点 "${pointCode}" 吗？`)) return;
 

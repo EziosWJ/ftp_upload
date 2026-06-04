@@ -133,6 +133,8 @@ class MeasurePointInfo(BaseModel):
     alarm_lower: float = Field(0, description="报警下限")
     sensor_relation: str = Field("", description="传感器关联关系")
     data_define_time: str = Field("", description="数据定义时间")
+    plc_name: str = Field("", description="PLC名称")
+    registers: list[ModbusRegisterConfig] = Field(default_factory=list, description="寄存器配置列表")
 
 
 class MeasurePointRealtimeInfo(BaseModel):
