@@ -13,6 +13,7 @@ from .scheduler import start_scheduler, stop_scheduler, set_pipeline
 from .status_tracker import DeviceStatusTracker
 from .pipeline import DataPipeline
 from .ftp_uploader import start_ftp_uploader, stop_ftp_uploader
+from .upload_scheduler import start_upload_scheduler, stop_upload_scheduler
 
 BASE_DIR = Path(__file__).parent.parent
 STATIC_DIR = Path(__file__).parent / "web" / "static"
@@ -61,12 +62,14 @@ async def lifespan(app: FastAPI):
     # Start scheduler and FTP uploader
     await start_scheduler()
     await start_ftp_uploader()
+    await start_upload_scheduler()
     logger.info("Application started")
 
     yield
 
     # Shutdown
     logger.info("Application shutting down...")
+    await stop_upload_scheduler()
     await stop_ftp_uploader()
     await stop_scheduler()
     await _pipeline.shutdown()

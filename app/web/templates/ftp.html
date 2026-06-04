@@ -46,6 +46,13 @@
                         <input class="form-check-input" type="checkbox" name="enabled" {% if config.ftp.enabled %}checked{% endif %}>
                         <label class="form-check-label">启用FTP上传</label>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">文件筛选（按类型标识过滤，逗号分隔，留空=上传全部）</label>
+                        <input type="text" class="form-control" name="file_filter" id="file_filter"
+                               value="{{ config.ftp.file_filter | join(',') if config.ftp.file_filter else '' }}"
+                               placeholder="如: JBSJ,TFJC,PSJC（留空上传全部）">
+                        <div class="form-text">文件名格式：煤矿编码_类型_时间戳.txt，填入类型标识进行筛选</div>
+                    </div>
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-primary" onclick="saveFtpConfig()">保存配置</button>
                         <button type="button" class="btn btn-outline-secondary" onclick="testFtpConnection()">测试连接</button>
@@ -93,6 +100,10 @@ async function saveFtpConfig() {
     const form = document.getElementById('ftpForm');
     const formData = new FormData(form);
 
+    // 解析文件筛选
+    const fileFilterStr = formData.get('file_filter') || '';
+    const fileFilter = fileFilterStr ? fileFilterStr.split(',').map(s => s.trim()).filter(s => s) : [];
+
     const config = {
         host: formData.get('host'),
         port: parseInt(formData.get('port')),
@@ -100,7 +111,8 @@ async function saveFtpConfig() {
         password: formData.get('password'),
         remote_dir: formData.get('remote_dir'),
         upload_interval_seconds: parseInt(formData.get('upload_interval_seconds')),
-        enabled: formData.get('enabled') === 'on'
+        enabled: formData.get('enabled') === 'on',
+        file_filter: fileFilter
     };
 
     try {

@@ -33,7 +33,7 @@
                     <td>{{ realtime.device_code }}</td>
                     <td>{{ realtime.point_value }} {{ realtime.point_unit }}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline-primary" onclick="editRealtime({{ loop.index }})">编辑</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editRealtime({{ loop.index0 }})">编辑</button>
                         <button class="btn btn-sm btn-outline-info btn-sm" onclick="viewRealtimeDetail('{{ realtime.point_code }}')">详情</button>
                         <button class="btn btn-sm btn-outline-danger" onclick="deleteRealtime('{{ realtime.point_code }}')">删除</button>
                     </td>

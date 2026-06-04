@@ -92,6 +92,31 @@ async def test_ftp_connection(config: FtpConfig) -> tuple[bool, str]:
         return False, f"Connection failed: {exc}"
 
 
+def _matches_file_filter(filename: str, file_filter: list[str]) -> bool:
+    """检查文件名是否匹配筛选条件
+
+    文件名格式：煤矿编码_类型_时间戳.txt
+    从文件名中提取类型标识，检查是否在 file_filter 列表中
+    """
+    if not file_filter:
+        return True
+
+    # 去掉 .txt 后缀，按 _ 分割
+    parts = filename.replace(".txt", "").split("_")
+    if len(parts) < 2:
+        return False
+
+    # 类型标识是第二部分（索引1）
+    file_type = parts[1]
+
+    # 支持精确匹配和前缀匹配
+    for filter_type in file_filter:
+        if file_type == filter_type or file_type.startswith(filter_type):
+            return True
+
+    return False
+
+
 async def upload_pending_files(config: FtpConfig, data_dir: str) -> list[str]:
     """Upload all data files that haven't been uploaded yet.
 
@@ -113,6 +138,13 @@ async def upload_pending_files(config: FtpConfig, data_dir: str) -> list[str]:
         p for p in sorted(data_path.glob("*.txt"))
         if p.name not in uploaded_set
     ]
+
+    # 文件筛选：如果配置了 file_filter，只上传匹配的文件
+    if config.file_filter:
+        pending = [
+            p for p in pending
+            if _matches_file_filter(p.name, config.file_filter)
+        ]
 
     if not pending:
         logger.debug("No pending files to upload")

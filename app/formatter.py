@@ -184,7 +184,9 @@ def write_report_file(
     """按标准命名写入文件：煤矿编码_类型_时间戳.txt"""
     config = load_config()
     mine_code = config.system_info.mine_code or "000000000000"
-    dir_path = Path(data_dir)
+    # 解析为绝对路径：相对于项目根目录（app/ 的上级）
+    project_root = Path(__file__).parent.parent
+    dir_path = project_root / data_dir
     dir_path.mkdir(parents=True, exist_ok=True)
 
     filename = f"{mine_code}_{data_type}_{_file_timestamp()}.txt"

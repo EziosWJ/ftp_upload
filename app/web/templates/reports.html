@@ -10,6 +10,9 @@
         <p class="text-muted">按 MT/T 1201.2-2023 标准格式生成报文文件，支持 FTP 上传和消息队列发布。</p>
     </div>
     <div class="col-md-4 text-end">
+        <button class="btn btn-warning" onclick="openUploadConfig()">
+            <i class="bi bi-gear"></i> 上传配置
+        </button>
         <button class="btn btn-success" onclick="generateAll()">
             <i class="bi bi-file-earmark-zip"></i> 批量生成全部
         </button>
@@ -102,6 +105,367 @@
 </div>
 
 <div id="message-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>
+
+<!-- 上传配置全屏 Modal -->
+<div class="modal fade" id="uploadConfigModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="bi bi-gear"></i> 上传配置</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="row g-0 h-100">
+                    <!-- 左侧：数据项目与定时配置 -->
+                    <div class="col-md-5 border-end" style="height: calc(100vh - 120px); overflow-y: auto;">
+                        <div class="p-3">
+                            <h6 class="mb-3">待生成数据项目</h6>
+
+                            <!-- 静态数据 -->
+                            <div class="card mb-3">
+                                <div class="card-header py-2">
+                                    <strong>静态基础数据</strong>
+                                </div>
+                                <div class="card-body py-2">
+                                    <div id="static-items"></div>
+                                </div>
+                            </div>
+
+                            <!-- 六大系统动态数据 -->
+                            <div class="card mb-3">
+                                <div class="card-header py-2">
+                                    <strong>六大系统动态数据</strong>
+                                </div>
+                                <div class="card-body py-2">
+                                    <div id="dynamic-items"></div>
+                                </div>
+                            </div>
+
+                            <!-- 上传任务列表 -->
+                            <div class="card">
+                                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                                    <strong>已配置任务</strong>
+                                    <button class="btn btn-sm btn-primary" onclick="showAddTaskModal()">
+                                        <i class="bi bi-plus"></i> 新增任务
+                                    </button>
+                                </div>
+                                <div class="card-body py-2">
+                                    <div id="task-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：系统设备与寄存器配置 -->
+                    <div class="col-md-7" style="height: calc(100vh - 120px); overflow-y: auto;">
+                        <div class="p-3">
+                            <h6 class="mb-3">系统设备与寄存器配置</h6>
+
+                            <!-- 系统选择 -->
+                            <div class="mb-3">
+                                <label class="form-label">选择系统</label>
+                                <select class="form-select" id="system-select" onchange="loadSystemDevices()">
+                                    <option value="">-- 请选择系统 --</option>
+                                    <option value="tfjk">主要通风机监控系统</option>
+                                    <option value="psjk">主排水监控系统</option>
+                                    <option value="lijk">立井提升监控系统</option>
+                                    <option value="xjjk">斜井提升监控系统</option>
+                                    <option value="kyjk">空气压缩机监控系统</option>
+                                    <option value="jcjk">绞车监控系统</option>
+                                </select>
+                            </div>
+
+                            <!-- 设备列表 -->
+                            <div class="card mb-3">
+                                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                                    <strong>设备列表</strong>
+                                    <button class="btn btn-sm btn-primary" onclick="showAddDeviceModal()">
+                                        <i class="bi bi-plus"></i> 添加设备
+                                    </button>
+                                </div>
+                                <div class="card-body py-2">
+                                    <div id="device-list">
+                                        <p class="text-muted">请先选择系统</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 寄存器列表 -->
+                            <div class="card" id="register-card" style="display:none;">
+                                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                                    <strong>寄存器列表 - <span id="current-device-name"></span></strong>
+                                    <button class="btn btn-sm btn-primary" onclick="showAddRegisterModal()">
+                                        <i class="bi bi-plus"></i> 新增测点
+                                    </button>
+                                </div>
+                                <div class="card-body py-2">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>测点编码</th>
+                                                    <th>测点名称</th>
+                                                    <th>寄存器地址</th>
+                                                    <th>数据类型</th>
+                                                    <th>量程</th>
+                                                    <th>报警</th>
+                                                    <th>单位</th>
+                                                    <th>采集</th>
+                                                    <th>报文</th>
+                                                    <th>操作</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="register-list"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" onclick="saveUploadConfig()">
+                    <i class="bi bi-save"></i> 保存配置
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 任务配置 Modal -->
+<div class="modal fade" id="taskModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="taskModalTitle">新增任务</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="taskForm">
+                    <input type="hidden" name="task_id" id="task_id">
+                    <div class="mb-3">
+                        <label class="form-label">任务ID</label>
+                        <input type="text" class="form-control" name="task_id_input" id="task_id_input" required placeholder="如 JBSJ、tfjk_SS">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">数据类型</label>
+                        <select class="form-select" name="data_type" id="task_data_type">
+                            <option value="JBSJ">JBSJ - 设备基本信息</option>
+                            <option value="ABSJ">ABSJ - 安标信息</option>
+                            <option value="JZTT">JZTT - 淘汰禁用设备</option>
+                            <option value="JCJY">JCJY - 设备检测检验</option>
+                            <option value="JC">JC - 测点基础</option>
+                            <option value="SS">SS - 实时数据</option>
+                            <option value="YC">YC - 异常数据</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="system-code-group">
+                        <label class="form-label">所属系统</label>
+                        <select class="form-select" name="system_code" id="task_system_code">
+                            <option value="">-- 无（静态数据）--</option>
+                            <option value="tfjk">主要通风机</option>
+                            <option value="psjk">主排水</option>
+                            <option value="lijk">立井提升</option>
+                            <option value="xjjk">斜井提升</option>
+                            <option value="kyjk">空压机</option>
+                            <option value="jcjk">绞车</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">定时类型</label>
+                        <select class="form-select" name="schedule_type" id="task_schedule_type" onchange="updateScheduleFields()">
+                            <option value="interval_minutes">自定义分钟</option>
+                            <option value="interval_hours">自定义小时</option>
+                            <option value="daily" selected>每日固定时点</option>
+                            <option value="weekly">每周指定日期</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="interval-field" style="display:none;">
+                        <label class="form-label">间隔值</label>
+                        <input type="number" class="form-control" name="interval_value" id="task_interval_value" min="1" value="30">
+                    </div>
+                    <div class="mb-3" id="time-fields">
+                        <div class="row">
+                            <div class="col-md-4" id="weekday-field" style="display:none;">
+                                <label class="form-label">星期</label>
+                                <select class="form-select" name="weekday" id="task_weekday">
+                                    <option value="0">周一</option>
+                                    <option value="1">周二</option>
+                                    <option value="2">周三</option>
+                                    <option value="3">周四</option>
+                                    <option value="4">周五</option>
+                                    <option value="5">周六</option>
+                                    <option value="6">周日</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">时</label>
+                                <input type="number" class="form-control" name="hour" id="task_hour" min="0" max="23" value="8">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">分</label>
+                                <input type="number" class="form-control" name="minute" id="task_minute" min="0" max="59" value="0">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">文件名字段</label>
+                        <div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="file_name_fields" value="mine_code" checked>
+                                <label class="form-check-label">煤矿编码</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="file_name_fields" value="type" checked>
+                                <label class="form-check-label">类型</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="file_name_fields" value="timestamp" checked>
+                                <label class="form-check-label">时间戳</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="file_name_fields" value="system_name">
+                                <label class="form-check-label">系统名称</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="file_name_fields" value="date">
+                                <label class="form-check-label">日期</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">自定义文件名模板（可选，优先于字段勾选）</label>
+                        <input type="text" class="form-control" name="file_name_template" id="task_file_name_template" placeholder="{mine_code}_{type}_{timestamp}">
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="enabled" id="task_enabled" checked>
+                        <label class="form-check-label">启用任务</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveTask()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加设备 Modal -->
+<div class="modal fade" id="deviceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deviceModalTitle">添加设备</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="deviceForm">
+                    <div class="mb-3">
+                        <label class="form-label">设备名称</label>
+                        <input type="text" class="form-control" name="device_name" id="device_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">设备编码</label>
+                        <input type="text" class="form-control" name="device_code" id="device_code">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">关联PLC设备</label>
+                        <select class="form-select" name="plc_device" id="plc_device">
+                            <option value="">-- 请选择 --</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveDevice()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加/编辑寄存器 Modal -->
+<div class="modal fade" id="registerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="registerModalTitle">新增测点</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="registerForm">
+                    <div class="mb-3">
+                        <label class="form-label">测点编码</label>
+                        <input type="text" class="form-control" name="point_code" id="reg_point_code" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">测点名称</label>
+                        <input type="text" class="form-control" name="point_name" id="reg_point_name">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">寄存器地址</label>
+                        <input type="text" class="form-control" name="register_address" id="reg_register_address" placeholder="如 40001 或 DB1.DBW0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">数据类型</label>
+                        <select class="form-select" name="data_type" id="reg_data_type">
+                            <option value="int16">INT16</option>
+                            <option value="uint16">UINT16</option>
+                            <option value="int32">INT32</option>
+                            <option value="uint32">UINT32</option>
+                            <option value="float32" selected>FLOAT32</option>
+                            <option value="float64">FLOAT64</option>
+                            <option value="bool">BOOL</option>
+                        </select>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">量程下限</label>
+                            <input type="number" class="form-control" name="range_lower" id="reg_range_lower" step="any" value="0">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">量程上限</label>
+                            <input type="number" class="form-control" name="range_upper" id="reg_range_upper" step="any" value="100">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">报警下限</label>
+                            <input type="number" class="form-control" name="alarm_lower" id="reg_alarm_lower" step="any" value="0">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">报警上限</label>
+                            <input type="number" class="form-control" name="alarm_upper" id="reg_alarm_upper" step="any" value="100">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">计量单位</label>
+                        <input type="text" class="form-control" name="unit" id="reg_unit">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">故障缺省值</label>
+                        <input type="number" class="form-control" name="fault_default" id="reg_fault_default" step="any" value="-9999">
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="collect_enabled" id="reg_collect_enabled">
+                        <label class="form-check-label">采集启用</label>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="report_enabled" id="reg_report_enabled">
+                        <label class="form-check-label">参与报文生成</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveRegister()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -161,6 +525,583 @@ async function publishAllMQ() {
             showMessage(`批量发布完成: ${data.published}/${data.total}`, 'success');
         } else {
             showMessage(data.detail || '发布失败', 'danger');
+        }
+    } catch (e) { showMessage('请求失败: ' + e.message, 'danger'); }
+}
+
+// ──────────── 上传配置 ────────────
+
+let uploadConfig = { tasks: [], system_devices: {} };
+let currentSystem = '';
+let currentDevice = '';
+let editingTaskId = null;
+let editingRegisterCode = null;
+
+async function openUploadConfig() {
+    await loadUploadConfig();
+    renderTasks();
+    renderStaticItems();
+    renderDynamicItems();
+    loadPLCDevices();
+    const modal = new bootstrap.Modal(document.getElementById('uploadConfigModal'));
+    modal.show();
+}
+
+async function loadUploadConfig() {
+    try {
+        const resp = await fetch('/api/upload-config');
+        const data = await resp.json();
+        uploadConfig = data.upload_config || { tasks: [], system_devices: {} };
+    } catch (e) {
+        console.error('Failed to load upload config:', e);
+    }
+}
+
+function renderStaticItems() {
+    const container = document.getElementById('static-items');
+    const staticTypes = [
+        { id: 'JBSJ', name: '矿用设备基本信息' },
+        { id: 'ABSJ', name: '矿用设备安标信息' },
+        { id: 'JZTT', name: '禁止/淘汰设备信息' },
+        { id: 'JCJY', name: '矿用设备检测检验信息' },
+    ];
+    container.innerHTML = staticTypes.map(t => `
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="static-${t.id}"
+                   onchange="toggleStaticTask('${t.id}', this.checked)"
+                   ${uploadConfig.tasks.some(tk => tk.task_id === t.id) ? 'checked' : ''}>
+            <label class="form-check-label" for="static-${t.id}">
+                <strong>${t.id}</strong> — ${t.name}
+            </label>
+        </div>
+    `).join('');
+}
+
+function renderDynamicItems() {
+    const container = document.getElementById('dynamic-items');
+    const systems = [
+        { code: 'tfjk', name: '主要通风机', prefix: 'TF' },
+        { code: 'psjk', name: '主排水', prefix: 'PS' },
+        { code: 'lijk', name: '立井提升', prefix: 'LJ' },
+        { code: 'xjjk', name: '斜井提升', prefix: 'XJ' },
+        { code: 'kyjk', name: '空压机', prefix: 'KY' },
+        { code: 'jcjk', name: '绞车', prefix: 'JC' },
+    ];
+    container.innerHTML = systems.map(s => `
+        <div class="mb-2">
+            <strong>${s.name}</strong> (${s.code})
+            <div class="ms-3">
+                ${['JC', 'SS', 'YC'].map(type => `
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="dyn-${s.code}-${type}"
+                               onchange="toggleDynamicTask('${s.code}', '${type}', this.checked)"
+                               ${uploadConfig.tasks.some(t => t.task_id === `${s.code}_${type}`) ? 'checked' : ''}>
+                        <label class="form-check-label" for="dyn-${s.code}-${type}">${type}</label>
+                    </div>
+                `).join('')}
+                <button class="btn btn-sm btn-outline-secondary ms-2" onclick="selectSystem('${s.code}')">
+                    数据选择
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function toggleStaticTask(taskId, checked) {
+    if (checked) {
+        const task = {
+            task_id: taskId,
+            data_type: taskId,
+            system_code: '',
+            schedule_type: 'daily',
+            hour: 8, minute: 0,
+            file_name_fields: ['mine_code', 'type', 'timestamp'],
+            file_name_template: '',
+            interval_value: 0,
+            weekday: null,
+            enabled: true,
+        };
+        uploadConfig.tasks.push(task);
+    } else {
+        uploadConfig.tasks = uploadConfig.tasks.filter(t => t.task_id !== taskId);
+    }
+    renderTasks();
+}
+
+async function toggleDynamicTask(systemCode, type, checked) {
+    const taskId = `${systemCode}_${type}`;
+    if (checked) {
+        const task = {
+            task_id: taskId,
+            data_type: type,
+            system_code: systemCode,
+            schedule_type: 'daily',
+            hour: 8, minute: 0,
+            file_name_fields: ['mine_code', 'type', 'timestamp'],
+            file_name_template: '',
+            interval_value: 0,
+            weekday: null,
+            enabled: true,
+        };
+        uploadConfig.tasks.push(task);
+    } else {
+        uploadConfig.tasks = uploadConfig.tasks.filter(t => t.task_id !== taskId);
+    }
+    renderTasks();
+}
+
+function renderTasks() {
+    const container = document.getElementById('task-list');
+    if (!uploadConfig.tasks || uploadConfig.tasks.length === 0) {
+        container.innerHTML = '<p class="text-muted">暂无配置任务</p>';
+        return;
+    }
+    container.innerHTML = uploadConfig.tasks.map(t => {
+        const scheduleDesc = getScheduleDesc(t);
+        return `
+            <div class="card mb-2">
+                <div class="card-body py-2 px-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${t.task_id}</strong>
+                            <span class="badge bg-${t.enabled ? 'success' : 'secondary'} ms-2">
+                                ${t.enabled ? '启用' : '停用'}
+                            </span>
+                            <br>
+                            <small class="text-muted">${scheduleDesc}</small>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary" onclick="editTask('${t.task_id}')">编辑</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteTask('${t.task_id}')">删除</button>
+                            <button class="btn btn-sm btn-outline-success" onclick="executeTask('${t.task_id}')">执行</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function getScheduleDesc(task) {
+    const typeMap = {
+        'interval_minutes': `每 ${task.interval_value} 分钟`,
+        'interval_hours': `每 ${task.interval_value} 小时`,
+        'daily': `每日 ${String(task.hour).padStart(2,'0')}:${String(task.minute).padStart(2,'0')}`,
+        'weekly': `每周${['一','二','三','四','五','六','日'][task.weekday || 0]} ${String(task.hour).padStart(2,'0')}:${String(task.minute).padStart(2,'0')}`,
+    };
+    return typeMap[task.schedule_type] || task.schedule_type;
+}
+
+function selectSystem(code) {
+    document.getElementById('system-select').value = code;
+    loadSystemDevices();
+}
+
+function showAddTaskModal() {
+    editingTaskId = null;
+    document.getElementById('taskModalTitle').textContent = '新增任务';
+    document.getElementById('taskForm').reset();
+    document.getElementById('task_enabled').checked = true;
+    updateScheduleFields();
+    const modal = new bootstrap.Modal(document.getElementById('taskModal'));
+    modal.show();
+}
+
+function editTask(taskId) {
+    const task = uploadConfig.tasks.find(t => t.task_id === taskId);
+    if (!task) return;
+    editingTaskId = taskId;
+    document.getElementById('taskModalTitle').textContent = '编辑任务';
+    document.getElementById('task_id_input').value = task.task_id;
+    document.getElementById('task_id_input').disabled = true;
+    document.getElementById('task_data_type').value = task.data_type;
+    document.getElementById('task_system_code').value = task.system_code || '';
+    document.getElementById('task_schedule_type').value = task.schedule_type;
+    document.getElementById('task_interval_value').value = task.interval_value || 30;
+    document.getElementById('task_hour').value = task.hour || 8;
+    document.getElementById('task_minute').value = task.minute || 0;
+    document.getElementById('task_weekday').value = task.weekday || 0;
+    document.getElementById('task_file_name_template').value = task.file_name_template || '';
+    document.getElementById('task_enabled').checked = task.enabled;
+
+    // 设置文件名字段复选框
+    document.querySelectorAll('input[name="file_name_fields"]').forEach(cb => {
+        cb.checked = (task.file_name_fields || []).includes(cb.value);
+    });
+
+    updateScheduleFields();
+    const modal = new bootstrap.Modal(document.getElementById('taskModal'));
+    modal.show();
+}
+
+async function saveTask() {
+    const form = document.getElementById('taskForm');
+    const taskId = editingTaskId || document.getElementById('task_id_input').value;
+    if (!taskId) {
+        showMessage('请输入任务ID', 'warning');
+        return;
+    }
+
+    const fileNameFields = [];
+    document.querySelectorAll('input[name="file_name_fields"]:checked').forEach(cb => {
+        fileNameFields.push(cb.value);
+    });
+
+    const task = {
+        task_id: taskId,
+        data_type: document.getElementById('task_data_type').value,
+        system_code: document.getElementById('task_system_code').value,
+        schedule_type: document.getElementById('task_schedule_type').value,
+        interval_value: parseInt(document.getElementById('task_interval_value').value) || 0,
+        hour: parseInt(document.getElementById('task_hour').value) || 0,
+        minute: parseInt(document.getElementById('task_minute').value) || 0,
+        weekday: document.getElementById('task_schedule_type').value === 'weekly'
+            ? parseInt(document.getElementById('task_weekday').value) : null,
+        file_name_fields: fileNameFields,
+        file_name_template: document.getElementById('task_file_name_template').value,
+        enabled: document.getElementById('task_enabled').checked,
+    };
+
+    try {
+        const method = editingTaskId ? 'PUT' : 'POST';
+        const url = editingTaskId
+            ? `/api/upload-config/tasks/${editingTaskId}`
+            : '/api/upload-config/tasks';
+        const resp = await fetch(url, {
+            method, headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(task),
+        });
+        const data = await resp.json();
+        if (data.status === 'success') {
+            if (editingTaskId) {
+                const idx = uploadConfig.tasks.findIndex(t => t.task_id === editingTaskId);
+                if (idx >= 0) uploadConfig.tasks[idx] = task;
+            } else {
+                uploadConfig.tasks.push(task);
+            }
+            renderTasks();
+            bootstrap.Modal.getInstance(document.getElementById('taskModal')).hide();
+            showMessage('任务已保存', 'success');
+        } else {
+            showMessage(data.detail || '保存失败', 'danger');
+        }
+    } catch (e) { showMessage('请求失败: ' + e.message, 'danger'); }
+}
+
+async function deleteTask(taskId) {
+    if (!confirm(`确定删除任务 ${taskId}？`)) return;
+    try {
+        const resp = await fetch(`/api/upload-config/tasks/${taskId}`, { method: 'DELETE' });
+        const data = await resp.json();
+        if (data.status === 'success') {
+            uploadConfig.tasks = uploadConfig.tasks.filter(t => t.task_id !== taskId);
+            renderTasks();
+            showMessage('任务已删除', 'success');
+        }
+    } catch (e) { showMessage('请求失败: ' + e.message, 'danger'); }
+}
+
+async function executeTask(taskId) {
+    try {
+        showMessage('正在执行任务...', 'info');
+        const resp = await fetch(`/api/upload-config/execute/${taskId}`, { method: 'POST' });
+        const data = await resp.json();
+        if (data.status === 'success') {
+            showMessage(data.message, 'success');
+        } else {
+            showMessage(data.detail || '执行失败', 'danger');
+        }
+    } catch (e) { showMessage('请求失败: ' + e.message, 'danger'); }
+}
+
+function updateScheduleFields() {
+    const type = document.getElementById('task_schedule_type').value;
+    document.getElementById('interval-field').style.display =
+        type.startsWith('interval') ? 'block' : 'none';
+    document.getElementById('time-fields').style.display =
+        type.startsWith('interval') ? 'none' : 'block';
+    document.getElementById('weekday-field').style.display =
+        type === 'weekly' ? 'block' : 'none';
+}
+
+// ──────────── 系统设备与寄存器 ────────────
+
+async function loadSystemDevices() {
+    currentSystem = document.getElementById('system-select').value;
+    const container = document.getElementById('device-list');
+    document.getElementById('register-card').style.display = 'none';
+
+    if (!currentSystem) {
+        container.innerHTML = '<p class="text-muted">请先选择系统</p>';
+        return;
+    }
+
+    try {
+        const resp = await fetch(`/api/upload-config/systems/${currentSystem}`);
+        const data = await resp.json();
+        const devices = data.devices || [];
+
+        if (devices.length === 0) {
+            container.innerHTML = '<p class="text-muted">暂无设备，请添加</p>';
+            return;
+        }
+
+        container.innerHTML = devices.map(d => `
+            <div class="card mb-2">
+                <div class="card-body py-2 px-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${d.device_name}</strong>
+                            <span class="badge bg-info ms-2">${d.device_code || '-'}</span>
+                            <span class="badge bg-secondary ms-1">PLC: ${d.plc_device || '未关联'}</span>
+                            <span class="badge bg-primary ms-1">${d.registers.length} 个寄存器</span>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewDeviceRegisters('${d.device_name}')">查看寄存器</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteDevice('${d.device_name}')">删除</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        container.innerHTML = '<p class="text-danger">加载失败</p>';
+        console.error(e);
+    }
+}
+
+function showAddDeviceModal() {
+    if (!currentSystem) {
+        showMessage('请先选择系统', 'warning');
+        return;
+    }
+    document.getElementById('deviceModalTitle').textContent = '添加设备';
+    document.getElementById('deviceForm').reset();
+    const modal = new bootstrap.Modal(document.getElementById('deviceModal'));
+    modal.show();
+}
+
+async function loadPLCDevices() {
+    try {
+        const resp = await fetch('/api/devices');
+        const data = await resp.json();
+        const select = document.getElementById('plc_device');
+        select.innerHTML = '<option value="">-- 请选择 --</option>';
+        (data.devices || []).forEach(d => {
+            select.innerHTML += `<option value="${d.name}">${d.name} (${d.host})</option>`;
+        });
+    } catch (e) { console.error(e); }
+}
+
+async function saveDevice() {
+    const deviceName = document.getElementById('device_name').value;
+    if (!deviceName) {
+        showMessage('请输入设备名称', 'warning');
+        return;
+    }
+
+    const device = {
+        device_name: deviceName,
+        device_code: document.getElementById('device_code').value,
+        plc_device: document.getElementById('plc_device').value,
+        registers: [],
+    };
+
+    try {
+        const resp = await fetch(`/api/upload-config/systems/${currentSystem}/devices`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(device),
+        });
+        const data = await resp.json();
+        if (data.status === 'success') {
+            bootstrap.Modal.getInstance(document.getElementById('deviceModal')).hide();
+            loadSystemDevices();
+            showMessage('设备已添加', 'success');
+        } else {
+            showMessage(data.detail || '添加失败', 'danger');
+        }
+    } catch (e) { showMessage('请求失败: ' + e.message, 'danger'); }
+}
+
+async function deleteDevice(deviceName) {
+    if (!confirm(`确定删除设备 ${deviceName}？`)) return;
+    try {
+        const resp = await fetch(
+            `/api/upload-config/systems/${currentSystem}/devices/${deviceName}`,
+            { method: 'DELETE' }
+        );
+        const data = await resp.json();
+        if (data.status === 'success') {
+            loadSystemDevices();
+            document.getElementById('register-card').style.display = 'none';
+            showMessage('设备已删除', 'success');
+        }
+    } catch (e) { showMessage('请求失败: ' + e.message, 'danger'); }
+}
+
+async function viewDeviceRegisters(deviceName) {
+    currentDevice = deviceName;
+    document.getElementById('current-device-name').textContent = deviceName;
+    document.getElementById('register-card').style.display = 'block';
+
+    try {
+        const resp = await fetch(
+            `/api/upload-config/systems/${currentSystem}/devices/${deviceName}/registers`
+        );
+        const data = await resp.json();
+        renderRegisters(data.registers || []);
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function renderRegisters(registers) {
+    const tbody = document.getElementById('register-list');
+    if (registers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="text-muted">暂无寄存器</td></tr>';
+        return;
+    }
+    tbody.innerHTML = registers.map(r => `
+        <tr>
+            <td>${r.point_code}</td>
+            <td>${r.point_name}</td>
+            <td>${r.register_address}</td>
+            <td>${r.data_type}</td>
+            <td>${r.range_lower} ~ ${r.range_upper}</td>
+            <td>${r.alarm_lower} ~ ${r.alarm_upper}</td>
+            <td>${r.unit}</td>
+            <td>
+                <span class="badge bg-${r.collect_enabled ? 'success' : 'secondary'}">
+                    ${r.collect_enabled ? '启用' : '停用'}
+                </span>
+            </td>
+            <td>
+                <span class="badge bg-${r.report_enabled ? 'primary' : 'secondary'}">
+                    ${r.report_enabled ? '是' : '否'}
+                </span>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="editRegister('${r.point_code}')">编辑</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteRegister('${r.point_code}')">删除</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function showAddRegisterModal() {
+    if (!currentDevice) {
+        showMessage('请先选择设备', 'warning');
+        return;
+    }
+    editingRegisterCode = null;
+    document.getElementById('registerModalTitle').textContent = '新增测点';
+    document.getElementById('registerForm').reset();
+    document.getElementById('reg_fault_default').value = '-9999';
+    const modal = new bootstrap.Modal(document.getElementById('registerModal'));
+    modal.show();
+}
+
+function editRegister(pointCode) {
+    // 从当前设备的寄存器列表中找到对应数据
+    fetch(`/api/upload-config/systems/${currentSystem}/devices/${currentDevice}/registers`)
+        .then(r => r.json())
+        .then(data => {
+            const reg = (data.registers || []).find(r => r.point_code === pointCode);
+            if (!reg) return;
+
+            editingRegisterCode = pointCode;
+            document.getElementById('registerModalTitle').textContent = '编辑测点';
+            document.getElementById('reg_point_code').value = reg.point_code;
+            document.getElementById('reg_point_code').disabled = true;
+            document.getElementById('reg_point_name').value = reg.point_name;
+            document.getElementById('reg_register_address').value = reg.register_address;
+            document.getElementById('reg_data_type').value = reg.data_type;
+            document.getElementById('reg_range_lower').value = reg.range_lower;
+            document.getElementById('reg_range_upper').value = reg.range_upper;
+            document.getElementById('reg_alarm_lower').value = reg.alarm_lower;
+            document.getElementById('reg_alarm_upper').value = reg.alarm_upper;
+            document.getElementById('reg_unit').value = reg.unit;
+            document.getElementById('reg_fault_default').value = reg.fault_default;
+            document.getElementById('reg_collect_enabled').checked = reg.collect_enabled;
+            document.getElementById('reg_report_enabled').checked = reg.report_enabled;
+
+            const modal = new bootstrap.Modal(document.getElementById('registerModal'));
+            modal.show();
+        });
+}
+
+async function saveRegister() {
+    const pointCode = document.getElementById('reg_point_code').value;
+    if (!pointCode) {
+        showMessage('请输入测点编码', 'warning');
+        return;
+    }
+
+    const register = {
+        point_code: pointCode,
+        point_name: document.getElementById('reg_point_name').value,
+        register_address: document.getElementById('reg_register_address').value,
+        data_type: document.getElementById('reg_data_type').value,
+        range_lower: parseFloat(document.getElementById('reg_range_lower').value) || 0,
+        range_upper: parseFloat(document.getElementById('reg_range_upper').value) || 0,
+        alarm_lower: parseFloat(document.getElementById('reg_alarm_lower').value) || 0,
+        alarm_upper: parseFloat(document.getElementById('reg_alarm_upper').value) || 0,
+        unit: document.getElementById('reg_unit').value,
+        fault_default: parseFloat(document.getElementById('reg_fault_default').value) || -9999,
+        collect_enabled: document.getElementById('reg_collect_enabled').checked,
+        report_enabled: document.getElementById('reg_report_enabled').checked,
+    };
+
+    try {
+        const method = editingRegisterCode ? 'PUT' : 'POST';
+        const url = editingRegisterCode
+            ? `/api/upload-config/systems/${currentSystem}/devices/${currentDevice}/registers/${editingRegisterCode}`
+            : `/api/upload-config/systems/${currentSystem}/devices/${currentDevice}/registers`;
+
+        const resp = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(register),
+        });
+        const data = await resp.json();
+        if (data.status === 'success') {
+            bootstrap.Modal.getInstance(document.getElementById('registerModal')).hide();
+            viewDeviceRegisters(currentDevice);
+            showMessage('寄存器已保存', 'success');
+        } else {
+            showMessage(data.detail || '保存失败', 'danger');
+        }
+    } catch (e) { showMessage('请求失败: ' + e.message, 'danger'); }
+}
+
+async function deleteRegister(pointCode) {
+    if (!confirm(`确定删除测点 ${pointCode}？`)) return;
+    try {
+        const resp = await fetch(
+            `/api/upload-config/systems/${currentSystem}/devices/${currentDevice}/registers/${pointCode}`,
+            { method: 'DELETE' }
+        );
+        const data = await resp.json();
+        if (data.status === 'success') {
+            viewDeviceRegisters(currentDevice);
+            showMessage('测点已删除', 'success');
+        }
+    } catch (e) { showMessage('请求失败: ' + e.message, 'danger'); }
+}
+
+async function saveUploadConfig() {
+    try {
+        const resp = await fetch('/api/upload-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(uploadConfig),
+        });
+        const data = await resp.json();
+        if (data.status === 'success') {
+            showMessage('配置已保存并生效', 'success');
+        } else {
+            showMessage(data.detail || '保存失败', 'danger');
         }
     } catch (e) { showMessage('请求失败: ' + e.message, 'danger'); }
 }

@@ -205,6 +205,7 @@ class FtpConfig(BaseModel):
     remote_dir: str = "/"
     enabled: bool = False
     upload_interval_seconds: int = Field(300, ge=60, description="How often to upload data files")
+    file_filter: list[str] = Field(default_factory=list, description="允许上传的文件类型标识，空列表=上传全部")
 
 
 class SystemInfo(BaseModel):
@@ -231,3 +232,64 @@ class AppConfig(BaseModel):
     web_port: int = 8000
     data_dir: str = "data"
     log_level: str = "INFO"
+
+
+# ──────────────── 上传配置模型 ────────────────
+
+class ScheduleType(str, Enum):
+    """定时类型枚举"""
+    INTERVAL_MINUTES = "interval_minutes"  # 自定义分钟
+    INTERVAL_HOURS = "interval_hours"      # 自定义小时
+    DAILY = "daily"                        # 每日固定时点
+    WEEKLY = "weekly"                      # 每周指定日期+时点
+
+
+class RegisterPoint(BaseModel):
+    """上传配置中的寄存器测点"""
+    point_code: str = Field(..., description="测点编码")
+    point_name: str = Field("", description="测点名称")
+    register_address: str = Field("", description="寄存器地址（如 DB1.DBW0 或 40001）")
+    data_type: DataType = DataType.FLOAT32
+    range_upper: float = Field(0, description="量程上限")
+    range_lower: float = Field(0, description="量程下限")
+    alarm_upper: float = Field(0, description="报警上限")
+    alarm_lower: float = Field(0, description="报警下限")
+    unit: str = Field("", description="计量单位")
+    collect_enabled: bool = Field(False, description="采集启用状态")
+    report_enabled: bool = Field(False, description="是否参与报文生成")
+    fault_default: float = Field(-9999, description="故障缺省值")
+
+
+class DeviceWithRegisters(BaseModel):
+    """某个系统下的设备及其寄存器"""
+    device_name: str = Field(..., description="设备名称")
+    device_code: str = Field("", description="设备编码")
+    plc_device: str = Field("", description="对应的PLC连接设备（DeviceConfig.name）")
+    registers: list[RegisterPoint] = Field(default_factory=list)
+
+
+class UploadTask(BaseModel):
+    """单个上传任务：一个数据项目 + 它的定时配置"""
+    task_id: str = Field(..., description="唯一标识，如 JBSJ、tfjk_SS")
+    data_type: str = Field(..., description="数据类型标识")
+    system_code: str = Field("", description="六大系统编码（动态数据才需要）")
+    file_name_fields: list[str] = Field(
+        default_factory=lambda: ["mine_code", "type", "timestamp"],
+        description="文件名组成字段",
+    )
+    file_name_template: str = Field("", description="自定义文件名模板，优先于字段勾选")
+    schedule_type: ScheduleType = ScheduleType.DAILY
+    interval_value: int = Field(0, ge=0, description="间隔值（分钟或小时）")
+    hour: int = Field(0, ge=0, le=23, description="时（daily/weekly）")
+    minute: int = Field(0, ge=0, le=59, description="分（daily/weekly）")
+    weekday: int | None = Field(None, ge=0, le=6, description="星期几（weekly: 0=周一）")
+    enabled: bool = True
+
+
+class UploadConfig(BaseModel):
+    """上传配置顶层模型，独立存储在 upload_config.json"""
+    tasks: list[UploadTask] = Field(default_factory=list)
+    system_devices: dict[str, list[DeviceWithRegisters]] = Field(
+        default_factory=dict,
+        description="系统→设备→寄存器 三层结构",
+    )

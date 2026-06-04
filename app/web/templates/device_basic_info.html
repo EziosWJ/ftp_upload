@@ -33,7 +33,7 @@
                     <td>{{ device.device_category }}</td>
                     <td>{{ device.manufacturer }}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline-primary" onclick="editDevice({{ loop.index }})">编辑</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editDevice({{ loop.index0 }})">编辑</button>
                         <button class="btn btn-sm btn-outline-danger" onclick="deleteDevice('{{ device.device_name }}')">删除</button>
                     </td>
                 </tr>

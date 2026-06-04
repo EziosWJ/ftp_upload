@@ -33,7 +33,7 @@
                     <td>{{ point.device_code }}</td>
                     <td>{{ point.point_location }}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline-primary" onclick="editPoint({{ loop.index }})">编辑</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editPoint({{ loop.index0 }})">编辑</button>
                         <button class="btn btn-sm btn-outline-info btn-sm" onclick="viewPointDetail('{{ point.point_code }}')">详情</button>
                         <button class="btn btn-sm btn-outline-danger" onclick="deletePoint('{{ point.point_code }}')">删除</button>
                     </td>
