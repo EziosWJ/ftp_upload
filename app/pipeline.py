@@ -1,7 +1,13 @@
 """DataPipeline — orchestrates the collect → write → track-status cycle.
 
-This module owns the per-device collector instances and delegates
-status tracking to DeviceStatusTracker and persistence to a write callback.
+Responsibilities:
+- Per-device collector lifecycle (create, connect, poll, disconnect)
+- Raw data file writing (behind DataWriter interface)
+- Device status tracking (delegated to DeviceStatusTracker)
+
+Adapters:
+- ConfigReader: provides app config and data_dir
+- DataWriter: writes datapoints to storage
 """
 
 import logging
@@ -11,13 +17,13 @@ from typing import Callable
 
 from app.collectors import create_collector
 from app.collectors.base import BaseCollector, DataPoint
-from app.config import load_config
 from app.models import DeviceConfig
 from app.status_tracker import DeviceStatusTracker
 
+from app.upload_executor import ConfigReader
+
 logger = logging.getLogger(__name__)
 
-# Resolve data directory relative to the project root (parent of app/)
 _PROJECT_ROOT = Path(__file__).parent.parent
 
 
@@ -33,36 +39,37 @@ def format_datapoints(datapoints: list[DataPoint]) -> str:
     return "\n".join(lines)
 
 
-def file_writer(device_name: str, datapoints: list[DataPoint]) -> None:
-    """Default write callback: append data points to a daily file."""
-    config = load_config()
-    data_dir = _PROJECT_ROOT / config.data_dir
-    data_dir.mkdir(parents=True, exist_ok=True)
-
-    file_path = data_dir / f"{device_name}_{datetime.now().strftime('%Y-%m-%d')}.txt"
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    block = f"=== 设备: {device_name} | 时间: {now} ===\n"
-    block += format_datapoints(datapoints) + "\n"
-
-    with open(file_path, "a", encoding="utf-8") as f:
-        f.write(block)
+def make_file_writer(data_dir: Path) -> Callable[[str, list[DataPoint]], None]:
+    """Factory: create a file writer bound to a specific data directory."""
+    def write(device_name: str, datapoints: list[DataPoint]) -> None:
+        data_dir.mkdir(parents=True, exist_ok=True)
+        file_path = data_dir / f"{device_name}_{datetime.now().strftime('%Y-%m-%d')}.txt"
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        block = f"=== 设备: {device_name} | 时间: {now} ===\n"
+        block += format_datapoints(datapoints) + "\n"
+        with open(file_path, "a", encoding="utf-8") as f:
+            f.write(block)
+    return write
 
 
 class DataPipeline:
     """Orchestrate connect → poll → write → status for a single device.
 
-    Owns per-device collector instances. The write callback handles
-    persistence; DeviceStatusTracker handles status recording.
+    Owns per-device collector instances.
+    Delegates status tracking to DeviceStatusTracker.
+    Delegates raw data writing to DataWriter (injected).
     """
 
     def __init__(
         self,
         status_tracker: DeviceStatusTracker,
-        write: Callable[[str, list[DataPoint]], None] = file_writer,
+        config_reader: ConfigReader,
+        data_writer: Callable[[str, list[DataPoint]], None] | None = None,
     ) -> None:
         self._status = status_tracker
-        self._write = write
+        self._config_reader = config_reader
         self._collectors: dict[str, BaseCollector] = {}
+        self._data_writer = data_writer
 
     def add_device(self, device: DeviceConfig) -> None:
         """Create and cache a collector for a device."""
@@ -80,7 +87,6 @@ class DataPipeline:
             logger.error("No collector for device '%s'", device_name)
             return
 
-        # Always start with a fresh connection
         try:
             await collector.disconnect()
         except Exception:
@@ -111,17 +117,18 @@ class DataPipeline:
 
         self._status.record_result(device_name, True)
 
-        try:
-            self._write(device_name, datapoints)
-            logger.info("Wrote %d data points for '%s'", len(datapoints), device_name)
-        except OSError:
-            logger.exception("Failed to write data for '%s'", device_name)
+        if self._data_writer:
+            try:
+                self._data_writer(device_name, datapoints)
+                logger.info("Wrote %d data points for '%s'", len(datapoints), device_name)
+            except OSError:
+                logger.exception("Failed to write data for '%s'", device_name)
 
     def get_device_statuses(self) -> dict[str, dict]:
         """Return per-device runtime status for API consumption."""
-        config = load_config()
+        app_config = self._config_reader.get_app_config()
         result = {}
-        for device in config.devices:
+        for device in app_config.devices:
             status = self._status.get_status(device.name)
             result[device.name] = {
                 "name": device.name,

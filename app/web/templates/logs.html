@@ -102,7 +102,18 @@ function toggleAutoRefresh() {
 
 async function clearLogs() {
     if (!confirm('确定要清空所有日志吗？')) return;
-    showMessage('日志清空功能待实现', 'warning');
+    try {
+        const res = await fetch('/api/logs', { method: 'DELETE' });
+        const data = await res.json();
+        if (data.status === 'success') {
+            showMessage('日志已清空', 'success');
+            loadLogs();
+        } else {
+            showMessage('清空失败: ' + data.message, 'danger');
+        }
+    } catch (err) {
+        showMessage('清空失败: ' + err.message, 'danger');
+    }
 }
 
 async function downloadLogs() {

@@ -11,9 +11,10 @@ from fastapi.templating import Jinja2Templates
 from .config import load_config
 from .scheduler import start_scheduler, stop_scheduler, set_pipeline
 from .status_tracker import DeviceStatusTracker
-from .pipeline import DataPipeline
+from .pipeline import DataPipeline, make_file_writer
 from .ftp_uploader import start_ftp_uploader, stop_ftp_uploader
 from .upload_scheduler import start_upload_scheduler, stop_upload_scheduler
+from .upload_executor import JsonFileConfigReader
 
 BASE_DIR = Path(__file__).parent.parent
 STATIC_DIR = Path(__file__).parent / "web" / "static"
@@ -55,8 +56,16 @@ async def lifespan(app: FastAPI):
 
     # Wire up DataPipeline and inject into scheduler
     global _pipeline
+    config_reader = JsonFileConfigReader()
+    app_config = config_reader.get_app_config()
+    data_dir = BASE_DIR / app_config.data_dir
     status_tracker = DeviceStatusTracker()
-    _pipeline = DataPipeline(status_tracker=status_tracker)
+    data_writer = make_file_writer(data_dir)
+    _pipeline = DataPipeline(
+        status_tracker=status_tracker,
+        config_reader=config_reader,
+        data_writer=data_writer,
+    )
     set_pipeline(_pipeline)
 
     # Start scheduler and FTP uploader

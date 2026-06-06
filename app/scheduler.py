@@ -144,18 +144,4 @@ async def stop_scheduler() -> None:
     if _pipeline is not None:
         await _pipeline.shutdown()
 
-    if _scheduler is None:
-        return
-
-    _scheduler.shutdown(wait=False)
-    _scheduler = None
-
-    # Disconnect all collectors
-    for name, collector in list(_collectors.items()):
-        try:
-            await collector.disconnect()
-        except Exception:
-            logger.exception("Error disconnecting collector '%s'", name)
-    _collectors.clear()
-
     logger.info("Scheduler stopped")

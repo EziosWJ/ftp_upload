@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>架构审查 — FTP Upload</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+    </script>
+    <style>
+      .seam { stroke-dasharray: 4 4; }
+      .leak { stroke: #dc2626; stroke-width: 2px; }
+      .deep { background: linear-gradient(135deg, #0f172a, #1e293b); }
+      .candidate-card { page-break-inside: avoid; }
+      .badge-strong { background-color: #059669; color: white; }
+      .badge-worth { background-color: #d97706; color: white; }
+      .badge-speculative { background-color: #64748b; color: white; }
+      .warning-box { background-color: #fef3c7; border-left: 4px solid #d97706; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+
+      <!-- Header -->
+      <header class="space-y-4">
+        <h1 class="text-3xl font-serif font-bold text-slate-800">架构审查 — FTP Upload</h1>
+        <p class="text-sm text-slate-500">2026-06-03 · 工业设备数据采集与上传系统</p>
+        <div class="flex gap-6 text-xs text-slate-600">
+          <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 border-2 border-slate-400 bg-white"></span> 模块</span>
+          <span class="flex items-center gap-1"><span class="inline-block w-4 h-0 border-t-2 border-dashed border-slate-400"></span> 接口 (Seam)</span>
+          <span class="flex items-center gap-1"><span class="inline-block w-4 h-0 border-t-2 border-red-500"></span> 泄漏</span>
+          <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 bg-slate-800 rounded-sm"></span> 深模块</span>
+        </div>
+      </header>
+
+      <!-- Candidates -->
+      <section id="candidates" class="space-y-10">
+
+        <!-- Candidate 1: AppConfig God Model -->
+        <article class="candidate-card rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+          <div class="flex items-center gap-3">
+            <h2 class="text-xl font-serif font-bold">1. 拆解 AppConfig 超级容器</h2>
+            <span class="badge-strong text-xs px-2 py-0.5 rounded-full">Strong</span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">ports &amp; adapters</span>
+          </div>
+          <div class="text-sm font-mono text-slate-500">app/models.py · app/config.py</div>
+
+          <div class="grid grid-cols-2 gap-6">
+            <!-- Before -->
+            <div class="space-y-2">
+              <h3 class="text-xs uppercase tracking-wider text-slate-400">Before</h3>
+              <div class="rounded-lg border border-slate-200 bg-white p-4">
+                <pre class="mermaid">
+flowchart TD
+    AppConfig["AppConfig (God Model)"]
+    AppConfig --> Devices["devices: list[DeviceConfig]"]
+    AppConfig --> BasicInfo["basic_info: list[DeviceBasicInfo]"]
+    AppConfig --> SafetyCert["safety_certs: list[SafetyCertInfo]"]
+    AppConfig --> MeasurePoints["measure_points: list[MeasurePointInfo]"]
+    AppConfig --> RTInfo["measure_point_realtime: list[MeasurePointRealtimeInfo]"]
+    AppConfig --> Schedules["schedules: list[ScheduleConfig]"]
+    AppConfig --> FTP["ftp: FtpConfig"]
+
+    style AppConfig fill:#1e293b,stroke:#1e293b,color:#fff
+                </pre>
+              </div>
+            </div>
+            <!-- After -->
+            <div class="space-y-2">
+              <h3 class="text-xs uppercase tracking-wider text-slate-400">After</h3>
+              <div class="rounded-lg border border-slate-200 bg-white p-4">
+                <pre class="mermaid">
+flowchart TD
+    DC["DeviceConfigStore"]
+    MC["MetadataStore"]
+    SC["ScheduleStore"]
+    FC["FtpConfigStore"]
+
+    DC --> Devices["devices: list[DeviceConfig]"]
+    MC --> BasicInfo["basic_info"]
+    MC --> SafetyCert["safety_certs"]
+    MC --> MeasurePoints["measure_points"]
+    MC --> RTInfo["realtime_info"]
+    SC --> Schedules["schedules"]
+    FC --> FTP["ftp config"]
+
+    style DC fill:#1e293b,stroke:#1e293b,color:#fff
+    style MC fill:#1e293b,stroke:#1e293b,color:#fff
+    style SC fill:#1e293b,stroke:#1e293b,color:#fff
+    style FC fill:#1e293b,stroke:#1e293b,color:#fff
+                </pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <h4 class="font-semibold text-slate-700">问题</h4>
+              <p class="text-slate-600">AppConfig 把设备配置、元数据、调度、FTP 全部塞在一个类里。每次 API 调用都加载整个配置文件，即使只修改一个字段。</p>
+            </div>
+            <div>
+              <h4 class="font-semibold text-slate-700">方案</h4>
+              <p class="text-slate-600">拆分为 4 个独立的配置存储模块，各自管理自己的 JSON 文件或独立的配置区域。</p>
+            </div>
+            <div>
+              <h4 class="font-semibold text-slate-700">收益</h4>
+              <ul class="text-slate-600 list-disc list-inside">
+                <li>locality: 每个关注点独立</li>
+                <li>leverage: 接口缩小</li>
+                <li>消除全量读写开销</li>
+              </ul>
+            </div>
+          </div>
+        </article>
+
+        <!-- Candidate 2: API 缺乏服务层 -->
+        <article class="candidate-card rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+          <div class="flex items-center gap-3">
+            <h2 class="text-xl font-serif font-bold">2. 引入服务层消除 API 重复</h2>
+            <span class="badge-strong text-xs px-2 py-0.5 rounded-full">Strong</span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">in-process</span>
+          </div>
+          <div class="text-sm font-mono text-slate-500">app/web/api.py · app/config.py</div>
+
+          <div class="grid grid-cols-2 gap-6">
+            <!-- Before -->
+            <div class="space-y-2">
+              <h3 class="text-xs uppercase tracking-wider text-slate-400">Before</h3>
+              <div class="rounded-lg border border-slate-200 bg-white p-4">
+                <pre class="mermaid">
+flowchart LR
+    API["api.py (~40 endpoints)"]
+    API -->|"load_config()"| Config["config.py"]
+    API -->|"修改 list"| Config
+    API -->|"save_config()"| Config
+    Config -->|"读文件"| Disk["config.json"]
+    Config -->|"写文件"| Disk
+
+    style API fill:#f0fdf4,stroke:#86efac,color:#166534
+    style Config fill:#fef3c7,stroke:#fbbf24,color:#92400e
+                </pre>
+              </div>
+              <p class="text-xs text-slate-500 mt-2">每个端点都重复: load → mutate → save</p>
+            </div>
+            <!-- After -->
+            <div class="space-y-2">
+              <h3 class="text-xs uppercase tracking-wider text-slate-400">After</h3>
+              <div class="rounded-lg border border-slate-200 bg-white p-4">
+                <pre class="mermaid">
+flowchart LR
+    API["api.py (thin routes)"]
+    API -->|"调用"| Services["Service Layer"]
+    Services -->|"读写"| Store["ConfigStore"]
+    Store --> Disk["config.json"]
+
+    style API fill:#f0fdf4,stroke:#86efac,color:#166534
+    style Services fill:#1e293b,stroke:#1e293b,color:#fff
+    style Store fill:#e0e7ff,stroke:#818cf8,color:#3730a3
+                </pre>
+              </div>
+              <p class="text-xs text-slate-500 mt-2">API 只做路由，业务逻辑在服务层</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <h4 class="font-semibold text-slate-700">问题</h4>
+              <p class="text-slate-600">~40 个端点全部直接操作 config 对象，basic-devices / safety-certs / measure-points / realtime 四组 CRUD 代码几乎完全相同（~80% 重复）。</p>
+            </div>
+            <div>
+              <h4 class="font-semibold text-slate-700">方案</h4>
+              <p class="text-slate-600">引入通用 CRUD 服务工厂或基类，API 层只做参数解析和响应格式化。</p>
+            </div>
+            <div>
+              <h4 class="font-semibold text-slate-700">收益</h4>
+              <ul class="text-slate-600 list-disc list-inside">
+                <li>leverage: 一个服务接口覆盖 N 个端点</li>
+                <li>locality: 业务逻辑集中</li>
+                <li>删除 ~300 行重复代码</li>
+              </ul>
+            </div>
+          </div>
+        </article>
+
+        <!-- Candidate 3: config.py 浅封装 -->
+        <article class="candidate-card rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+          <div class="flex items-center gap-3">
+            <h2 class="text-xl font-serif font-bold">3. 加深 config.py — 去除浅封装，添加缓存</h2>
+            <span class="badge-worth text-xs px-2 py-0.5 rounded-full">Worth exploring</span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">in-process</span>
+          </div>
+          <div class="text-sm font-mono text-slate-500">app/config.py</div>
+
+          <div class="grid grid-cols-2 gap-6">
+            <!-- Before -->
+            <div class="space-y-2">
+              <h3 class="text-xs uppercase tracking-wider text-slate-400">Before — 浅模块</h3>
+              <div class="rounded-lg border border-slate-200 p-4 bg-slate-50 space-y-2 text-sm font-mono">
+                <div class="text-slate-500"># 接口 ≈ 实现 (shallow)</div>
+                <div>load_config() <span class="text-slate-400">→ 读文件 + parse</span></div>
+                <div>save_config() <span class="text-slate-400">→ dump + 写文件</span></div>
+                <div>get_config() <span class="text-red-500">→ load_config() 的别名</span></div>
+                <div>update_config() <span class="text-red-500">→ save_config() 的别名</span></div>
+                <div class="text-slate-400 mt-2"># 无缓存，每次读磁盘</div>
+                <div class="text-slate-400"># scheduler 每次轮询都调用</div>
+              </div>
+            </div>
+            <!-- After -->
+            <div class="space-y-2">
+              <h3 class="text-xs uppercase tracking-wider text-slate-400">After — 深模块</h3>
+              <div class="rounded-lg border border-slate-200 p-4 bg-slate-50 space-y-2 text-sm font-mono">
+                <div class="text-slate-500"># 接口小，行为多 (deep)</div>
+                <div>get_devices() <span class="text-green-600">→ 缓存 + 返回</span></div>
+                <div>update_device() <span class="text-green-600">→ 验证 + 原子写</span></div>
+                <div class="text-slate-400"># 内部: 缓存 + 文件锁</div>
+                <div class="text-slate-400"># 调用者无需知道存储细节</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <h4 class="font-semibold text-slate-700">问题</h4>
+              <p class="text-slate-600">get_config() 和 update_config() 是零价值别名。无缓存导致 scheduler 每次轮询都读磁盘。CONFIG_FILE 路径硬编码，测试不友好。</p>
+            </div>
+            <div>
+              <h4 class="font-semibold text-slate-700">方案</h4>
+              <p class="text-slate-600">删除别名函数，添加内存缓存（带 TTL 或文件 mtime 检查），支持路径注入。</p>
+            </div>
+            <div>
+              <h4 class="font-semibold text-slate-700">收益</h4>
+              <ul class="text-slate-600 list-disc list-inside">
+                <li>接口缩小 50%</li>
+                <li>消除每次轮询的文件 I/O</li>
+                <li>可测试性提升</li>
+              </ul>
+            </div>
+          </div>
+        </article>
+
+        <!-- Candidate 4: 后台任务模式重复 -->
+        <article class="candidate-card rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+          <div class="flex items-center gap-3">
+            <h2 class="text-xl font-serif font-bold">4. 统一后台任务生命周期管理</h2>
+            <span class="badge-worth text-xs px-2 py-0.5 rounded-full">Worth exploring</span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">in-process</span>
+          </div>
+          <div class="text-sm font-mono text-slate-500">app/scheduler.py · app/ftp_uploader.py</div>
+
+          <div class="grid grid-cols-2 gap-6">
+            <!-- Before -->
+            <div class="space-y-2">
+              <h3 class="text-xs uppercase tracking-wider text-slate-400">Before — 重复模式</h3>
+              <div class="rounded-lg border border-slate-200 bg-white p-4">
+                <pre class="mermaid">
+flowchart TD
+    subgraph scheduler.py
+        S1["_scheduler (全局)"]
+        S2["_collectors (全局)"]
+        S3["_device_status (全局)"]
+        S4["start/stop/reload"]
+    end
+    subgraph ftp_uploader.py
+        F1["_upload_task (全局)"]
+        F2["_uploaded (全局)"]
+        F3["_shutdown_event (全局)"]
+        F4["start/stop/upload"]
+    end
+
+    style S1 fill:#fef3c7,stroke:#fbbf24
+    style S2 fill:#fef3c7,stroke:#fbbf24
+    style S3 fill:#fef3c7,stroke:#fbbf24
+    style F1 fill:#fef3c7,stroke:#fbbf24
+    style F2 fill:#fef3c7,stroke:#fbbf24
+    style F3 fill:#fef3c7,stroke:#fbbf24
+                </pre>
+              </div>
+            </div>
+            <!-- After -->
+            <div class="space-y-2">
+              <h3 class="text-xs uppercase tracking-wider text-slate-400">After — 统一抽象</h3>
+              <div class="rounded-lg border border-slate-200 bg-white p-4">
+                <pre class="mermaid">
+flowchart TD
+    BM["BackgroundTaskManager"]
+    BM --> CT["CollectionTask"]
+    BM --> UT["UploadTask"]
+    CT -->|"管理生命周期"| CT
+    UT -->|"管理生命周期"| UT
+
+    style BM fill:#1e293b,stroke:#1e293b,color:#fff
+                </pre>
+              </div>
+              <p class="text-xs text-slate-500 mt-2">统一的 start/stop/status 接口</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <h4 class="font-semibold text-slate-700">问题</h4>
+              <p class="text-slate-600">scheduler.py 和 ftp_uploader.py 使用完全相同的模块级全局状态 + 生命周期管理模式。无法创建多实例，测试时状态泄漏。</p>
+            </div>
+            <div>
+              <h4 class="font-semibold text-slate-700">方案</h4>
+              <p class="text-slate-600">提取 BackgroundTaskManager 基类，统一 start/stop/status 生命周期。各任务只需实现 execute() 方法。</p>
+            </div>
+            <div>
+              <h4 class="font-semibold text-slate-700">收益</h4>
+              <ul class="text-slate-600 list-disc list-inside">
+                <li>leverage: 一个接口管理所有后台任务</li>
+                <li>locality: 生命周期逻辑集中</li>
+                <li>可测试性: 无全局状态泄漏</li>
+              </ul>
+            </div>
+          </div>
+        </article>
+
+        <!-- Candidate 5: test_device 破坏 seam -->
+        <article class="candidate-card rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+          <div class="flex items-center gap-3">
+            <h2 class="text-xl font-serif font-bold">5. 修复 test_device 对 collector seam 的破坏</h2>
+            <span class="badge-worth text-xs px-2 py-0.5 rounded-full">Worth exploring</span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">local-substitutable</span>
+          </div>
+          <div class="text-sm font-mono text-slate-500">app/web/api.py · app/collectors/</div>
+
+          <div class="grid grid-cols-2 gap-6">
+            <!-- Before -->
+            <div class="space-y-2">
+              <h3 class="text-xs uppercase tracking-wider text-slate-400">Before — Seam 被绕过</h3>
+              <div class="rounded-lg border border-slate-200 bg-white p-4">
+                <pre class="mermaid">
+flowchart LR
+    API["api.py: test_device"]
+    API -->|"直接 import"| MC["ModbusCollector"]
+    API -->|"直接 import"| SC["S7Collector"]
+    BC["BaseCollector"] -.->|"被忽略"| API
+
+    style API fill:#fef3c7,stroke:#fbbf24,color:#92400e
+    style MC fill:#fee2e2,stroke:#f87171,color:#991b1b
+    style SC fill:#fee2e2,stroke:#f87171,color:#991b1b
+                </pre>
+              </div>
+            </div>
+            <!-- After -->
+            <div class="space-y-2">
+              <h3 class="text-xs uppercase tracking-wider text-slate-400">After — 通过 Seam 调用</h3>
+              <div class="rounded-lg border border-slate-200 bg-white p-4">
+                <pre class="mermaid">
+flowchart LR
+    API["api.py: test_device"]
+    API -->|"通过工厂"| Factory["CollectorFactory"]
+    Factory -->|"返回"| BC["BaseCollector"]
+    BC --> MC["ModbusCollector"]
+    BC --> SC["S7Collector"]
+
+    style BC fill:#1e293b,stroke:#1e293b,color:#fff
+    style Factory fill:#e0e7ff,stroke:#818cf8,color:#3730a3
+                </pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <h4 class="font-semibold text-slate-700">问题</h4>
+              <p class="text-slate-600">api.py 直接 import ModbusCollector 和 S7Collector，绕过 BaseCollector 抽象。添加新协议必须修改 api.py。</p>
+            </div>
+            <div>
+              <h4 class="font-semibold text-slate-700">方案</h4>
+              <p class="text-slate-600">引入 CollectorFactory，api.py 只依赖 BaseCollector 接口。工厂根据 device_type 返回正确的采集器。</p>
+            </div>
+            <div>
+              <h4 class="font-semibold text-slate-700">收益</h4>
+              <ul class="text-slate-600 list-disc list-inside">
+                <li>Seam 真正可替换</li>
+                <li>新协议无需改 api.py</li>
+                <li>测试可用 mock 采集器</li>
+              </ul>
+            </div>
+          </div>
+        </article>
+
+      </section>
+
+      <!-- Top Recommendation -->
+      <section id="top-recommendation" class="rounded-xl border-2 border-emerald-500 bg-emerald-50 p-6 space-y-3">
+        <h2 class="text-xl font-serif font-bold text-emerald-800">🏆 首选建议</h2>
+        <p class="text-slate-700">
+          <strong>候选 #2: 引入服务层消除 API 重复</strong> — 这是投入产出比最高的改动。
+          ~40 个端点中 80% 是相同的 load → mutate → save 模式，basic-devices / safety-certs / measure-points / realtime 四组 CRUD 几乎完全相同。
+          引入一个通用 CRUD 服务工厂可以消除 ~300 行重复代码，同时为后续拆解 AppConfig（候选 #1）打下基础。
+          改动范围集中在 <code>app/web/api.py</code> 和新建的 <code>app/services.py</code>，风险最低。
+        </p>
+        <p class="text-sm text-slate-500">
+          <a href="#candidates" class="text-emerald-600 hover:underline">← 查看所有候选</a>
+        </p>
+      </section>
+
+    </main>
+  </body>
+</html>

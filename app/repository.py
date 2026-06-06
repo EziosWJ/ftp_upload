@@ -6,7 +6,7 @@ from typing import Generic, TypeVar
 from fastapi import HTTPException
 from pydantic import BaseModel
 
-from .config import load_config, save_config
+from .config import get_config, load_config, save_config
 
 logger = logging.getLogger(__name__)
 
@@ -39,11 +39,11 @@ class CrudRepository(Generic[T]):
         return getattr(item, self.key_field)
 
     def list(self) -> list[T]:
-        config = load_config()
+        config = get_config()
         return self._get_list(config)
 
     def get(self, key_value) -> T | None:
-        config = load_config()
+        config = get_config()
         return next(
             (item for item in self._get_list(config) if self._get_key(item) == key_value),
             None,

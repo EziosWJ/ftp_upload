@@ -7,15 +7,17 @@
 - 异常值：-9999
 - 编码：UTF-8 无 BOM
 - 文件名：煤矿编码_类型_时间戳.txt
+
+所有函数签名中的 mine_code 和 mine_name 均从 SystemInfo 直接传入，
+不调用 load_config()，确保 formatter 为纯函数。
 """
 
 from datetime import datetime
 from pathlib import Path
 
-from app.config import load_config
 from app.models import (
-    DeviceBasicInfo, SafetyCertInfo, ObsoleteDeviceInfo, DeviceTestInfo,
-    MeasurePointInfo, MeasurePointRealtimeInfo, AlarmData,
+    AlarmData, DeviceBasicInfo, DeviceTestInfo, MeasurePointInfo,
+    MeasurePointRealtimeInfo, ObsoleteDeviceInfo, SafetyCertInfo, SystemInfo,
 )
 
 
@@ -27,11 +29,9 @@ def _file_timestamp() -> str:
     return datetime.now().strftime("%Y%m%d%H%M%S")
 
 
-def _header(system_code: str, system_name: str) -> str:
+def _header(system_code: str, system_name: str, mine_code: str, mine_name: str) -> str:
     """生成标准报文头：煤矿编码;煤矿名称;系统标识;系统名称;时间戳~"""
-    config = load_config()
-    si = config.system_info
-    return f"{si.mine_code};{si.mine_name};{system_code};{system_name};{_now_str()}~"
+    return f"{mine_code};{mine_name};{system_code};{system_name};{_now_str()}~"
 
 
 def _safe(val) -> str:
@@ -41,70 +41,123 @@ def _safe(val) -> str:
     return str(val)
 
 
+def _format_row(*fields) -> str:
+    """格式化单行数据：分号分隔，末尾~"""
+    return ";".join(_safe(f) for f in fields) + "~"
+
+
+def _device_basic_row(d: DeviceBasicInfo) -> str:
+    return _format_row(
+        d.device_code, d.device_name, d.spec_model,
+        d.device_category, d.production_date,
+        d.belonging_system, d.install_date,
+        d.install_location, d.manufacturer,
+        d.factory_code, d.safety_cert_no,
+        d.explosion_proof_no, d.rated_voltage,
+        d.rated_current, d.rated_power,
+    )
+
+
+def _safety_cert_row(c: SafetyCertInfo) -> str:
+    return _format_row(
+        c.product_name, c.spec_model, c.factory_code,
+        c.cert_no, c.valid_from, c.valid_to,
+        c.cert_status.value, c.production_unit,
+        c.production_address, c.contact_person,
+        c.contact_phone, c.certificate_holder,
+    )
+
+
+def _obsolete_device_row(d: ObsoleteDeviceInfo) -> str:
+    return _format_row(
+        d.product_name, d.spec_model,
+        d.non_compliance_reason, d.immediate_prohibition,
+        d.prohibition_deadline, d.announcement_batch,
+        d.announcement_date, d.effective_date,
+        d.elimination_category, d.remark,
+    )
+
+
+def _device_test_row(t: DeviceTestInfo) -> str:
+    return _format_row(
+        t.factory_code, t.device_name, t.spec_model,
+        t.test_no, t.test_project, t.test_result,
+        t.test_date, t.test_agency,
+        t.valid_from, t.valid_to, t.test_cycle,
+        t.remark, t.contact_person, t.contact_phone,
+    )
+
+
+def _measure_point_info_row(p: MeasurePointInfo) -> str:
+    return _format_row(
+        p.point_code, p.point_type_code,
+        p.point_type_name, p.device_code,
+        p.point_location, p.unit,
+        p.range_upper, p.range_lower,
+        p.alarm_upper, p.alarm_lower,
+        p.sensor_relation, p.data_define_time,
+    )
+
+
+def _measure_point_realtime_row(p: MeasurePointRealtimeInfo) -> str:
+    return _format_row(
+        p.point_code, p.point_type_code,
+        p.point_type_name, p.device_code,
+        p.point_value, p.point_unit,
+        p.point_status, p.data_time,
+    )
+
+
+def _alarm_data_row(a: AlarmData) -> str:
+    return _format_row(
+        a.point_code, a.point_type_code,
+        a.point_name, a.device_code,
+        a.alarm_status, a.alarm_start_time,
+        a.alarm_end_time, a.alarm_level,
+        a.recovery_time, a.recovery_value,
+        a.peak_time, a.peak_value,
+        a.data_time,
+    )
+
+
 # ──────────────── 静态基础数据格式化 ────────────────
 
-def format_jbsj(items: list[DeviceBasicInfo]) -> str:
+def format_jbsj(items: list[DeviceBasicInfo], system_info: SystemInfo) -> str:
     """设备基本信息 (JBSJ)"""
-    lines = [_header("JBSJ", "设备基本信息")]
+    si = system_info
+    lines = [_header("JBSJ", "设备基本信息", si.mine_code, si.mine_name)]
     for d in items:
-        fields = [
-            _safe(d.device_code), _safe(d.device_name), _safe(d.spec_model),
-            _safe(d.device_category), _safe(d.production_date),
-            _safe(d.belonging_system), _safe(d.install_date),
-            _safe(d.install_location), _safe(d.manufacturer),
-            _safe(d.factory_code), _safe(d.safety_cert_no),
-            _safe(d.explosion_proof_no), _safe(d.rated_voltage),
-            _safe(d.rated_current), _safe(d.rated_power),
-        ]
-        lines.append(";".join(fields) + "~")
+        lines.append(_device_basic_row(d))
     lines.append("||")
     return "\n".join(lines)
 
 
-def format_absj(items: list[SafetyCertInfo]) -> str:
+def format_absj(items: list[SafetyCertInfo], system_info: SystemInfo) -> str:
     """安标信息 (ABSJ)"""
-    lines = [_header("ABSJ", "安标信息")]
+    si = system_info
+    lines = [_header("ABSJ", "安标信息", si.mine_code, si.mine_name)]
     for c in items:
-        fields = [
-            _safe(c.product_name), _safe(c.spec_model), _safe(c.factory_code),
-            _safe(c.cert_no), _safe(c.valid_from), _safe(c.valid_to),
-            str(c.cert_status.value), _safe(c.production_unit),
-            _safe(c.production_address), _safe(c.contact_person),
-            _safe(c.contact_phone), _safe(c.certificate_holder),
-        ]
-        lines.append(";".join(fields) + "~")
+        lines.append(_safety_cert_row(c))
     lines.append("||")
     return "\n".join(lines)
 
 
-def format_jztt(items: list[ObsoleteDeviceInfo]) -> str:
+def format_jztt(items: list[ObsoleteDeviceInfo], system_info: SystemInfo) -> str:
     """淘汰禁用设备 (JZTT)"""
-    lines = [_header("JZTT", "淘汰禁用设备")]
+    si = system_info
+    lines = [_header("JZTT", "淘汰禁用设备", si.mine_code, si.mine_name)]
     for d in items:
-        fields = [
-            _safe(d.product_name), _safe(d.spec_model),
-            _safe(d.non_compliance_reason), str(d.immediate_prohibition),
-            _safe(d.prohibition_deadline), _safe(d.announcement_batch),
-            _safe(d.announcement_date), _safe(d.effective_date),
-            str(d.elimination_category), _safe(d.remark),
-        ]
-        lines.append(";".join(fields) + "~")
+        lines.append(_obsolete_device_row(d))
     lines.append("||")
     return "\n".join(lines)
 
 
-def format_jcjy(items: list[DeviceTestInfo], mine_code: str = "", mine_name: str = "") -> str:
+def format_jcjy(items: list[DeviceTestInfo], system_info: SystemInfo) -> str:
     """设备检测检验 (JCJY)"""
-    lines = [_header("JCJY", "设备检测检验")]
+    si = system_info
+    lines = [_header("JCJY", "设备检测检验", si.mine_code, si.mine_name)]
     for t in items:
-        fields = [
-            _safe(t.factory_code), _safe(t.device_name), _safe(t.spec_model),
-            _safe(t.test_no), _safe(t.test_project), str(t.test_result),
-            _safe(t.test_date), _safe(t.test_agency),
-            _safe(t.valid_from), _safe(t.valid_to), str(t.test_cycle),
-            _safe(t.remark), _safe(t.contact_person), _safe(t.contact_phone),
-        ]
-        lines.append(";".join(fields) + "~")
+        lines.append(_device_test_row(t))
     lines.append("||")
     return "\n".join(lines)
 
@@ -115,20 +168,13 @@ def format_measure_point_define(
     items: list[MeasurePointInfo],
     system_code: str,
     system_name: str,
-    system_short: str,
+    mine_code: str,
+    mine_name: str,
 ) -> str:
     """测点基础信息 (JC) — 通用"""
-    lines = [_header(system_code, system_name)]
+    lines = [_header(system_code, system_name, mine_code, mine_name)]
     for p in items:
-        fields = [
-            _safe(p.point_code), _safe(p.point_type_code),
-            _safe(p.point_type_name), _safe(p.device_code),
-            _safe(p.point_location), _safe(p.unit),
-            str(p.range_upper), str(p.range_lower),
-            str(p.alarm_upper), str(p.alarm_lower),
-            _safe(p.sensor_relation), _safe(p.data_define_time),
-        ]
-        lines.append(";".join(fields) + "~")
+        lines.append(_measure_point_info_row(p))
     lines.append("||")
     return "\n".join(lines)
 
@@ -137,17 +183,13 @@ def format_measure_point_realtime(
     items: list[MeasurePointRealtimeInfo],
     system_code: str,
     system_name: str,
+    mine_code: str,
+    mine_name: str,
 ) -> str:
     """测点实时数据 (SS) — 通用"""
-    lines = [_header(system_code, system_name)]
+    lines = [_header(system_code, system_name, mine_code, mine_name)]
     for p in items:
-        fields = [
-            _safe(p.point_code), _safe(p.point_type_code),
-            _safe(p.point_type_name), _safe(p.device_code),
-            str(p.point_value), _safe(p.point_unit),
-            _safe(p.point_status), _safe(p.data_time),
-        ]
-        lines.append(";".join(fields) + "~")
+        lines.append(_measure_point_realtime_row(p))
     lines.append("||")
     return "\n".join(lines)
 
@@ -156,20 +198,13 @@ def format_alarm_data(
     items: list[AlarmData],
     system_code: str,
     system_name: str,
+    mine_code: str,
+    mine_name: str,
 ) -> str:
     """异常/报警数据 (YC) — 通用"""
-    lines = [_header(system_code, system_name)]
+    lines = [_header(system_code, system_name, mine_code, mine_name)]
     for a in items:
-        fields = [
-            _safe(a.point_code), _safe(a.point_type_code),
-            _safe(a.point_name), _safe(a.device_code),
-            str(a.alarm_status), _safe(a.alarm_start_time),
-            _safe(a.alarm_end_time), str(a.alarm_level),
-            _safe(a.recovery_time), str(a.recovery_value),
-            _safe(a.peak_time), str(a.peak_value),
-            _safe(a.data_time),
-        ]
-        lines.append(";".join(fields) + "~")
+        lines.append(_alarm_data_row(a))
     lines.append("||")
     return "\n".join(lines)
 
@@ -180,21 +215,13 @@ def write_report_file(
     data_type: str,
     content: str,
     data_dir: str = "data",
-) -> Path:
-    """按标准命名写入文件：煤矿编码_类型_时间戳.txt"""
-    config = load_config()
-    mine_code = config.system_info.mine_code or "000000000000"
-    # 解析为绝对路径：相对于项目根目录（app/ 的上级）
+    mine_code: str = "000000000000",
+) -> str:
+    """按标准命名写入文件，返回文件路径。 caller 负责写入。"""
     project_root = Path(__file__).parent.parent
     dir_path = project_root / data_dir
     dir_path.mkdir(parents=True, exist_ok=True)
-
-    filename = f"{mine_code}_{data_type}_{_file_timestamp()}.txt"
-    file_path = dir_path / filename
-
-    # UTF-8 无 BOM
-    file_path.write_text(content, encoding="utf-8")
-    return file_path
+    return f"{mine_code}_{data_type}_{_file_timestamp()}.txt"
 
 
 # ──────────────── 六大系统便捷函数 ────────────────
@@ -209,19 +236,22 @@ SYSTEM_MAP = {
 }
 
 
-def format_system_jc(items: list[MeasurePointInfo], system_key: str) -> str:
+def format_system_jc(items: list[MeasurePointInfo], system_key: str, system_info: SystemInfo) -> str:
     """六大系统测点基础 (JC)"""
     code, name, short = SYSTEM_MAP[system_key]
-    return format_measure_point_define(items, code, name, short)
+    si = system_info
+    return format_measure_point_define(items, code, name, si.mine_code, si.mine_name)
 
 
-def format_system_ss(items: list[MeasurePointRealtimeInfo], system_key: str) -> str:
+def format_system_ss(items: list[MeasurePointRealtimeInfo], system_key: str, system_info: SystemInfo) -> str:
     """六大系统实时数据 (SS)"""
     code, name, _ = SYSTEM_MAP[system_key]
-    return format_measure_point_realtime(items, code, name)
+    si = system_info
+    return format_measure_point_realtime(items, code, name, si.mine_code, si.mine_name)
 
 
-def format_system_yc(items: list[AlarmData], system_key: str) -> str:
+def format_system_yc(items: list[AlarmData], system_key: str, system_info: SystemInfo) -> str:
     """六大系统异常数据 (YC)"""
     code, name, _ = SYSTEM_MAP[system_key]
-    return format_alarm_data(items, code, name)
+    si = system_info
+    return format_alarm_data(items, code, name, si.mine_code, si.mine_name)

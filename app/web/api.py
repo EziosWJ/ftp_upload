@@ -466,32 +466,37 @@ async def generate_report(data_type: str):
     )
 
     config = load_config()
+    system_info = config.system_info
 
     formatter_map = {
-        "jbsj": lambda: format_jbsj(config.basic_devices),
-        "absj": lambda: format_absj(config.safety_cert_list),
-        "jztt": lambda: format_jztt(config.obsolete_device_list),
-        "jcjy": lambda: format_jcjy(config.device_test_list),
+        "jbsj": lambda si=system_info: format_jbsj(config.basic_devices, si),
+        "absj": lambda si=system_info: format_absj(config.safety_cert_list, si),
+        "jztt": lambda si=system_info: format_jztt(config.obsolete_device_list, si),
+        "jcjy": lambda si=system_info: format_jcjy(config.device_test_list, si),
     }
 
     # 六大系统 JC/SS/YC
     for sys_key, (code, name, short) in SYSTEM_MAP.items():
         prefix = short.lower()
-        formatter_map[f"{prefix}jc"] = lambda sk=sys_key: format_system_jc(
-            config.measure_point_list, sk
+        formatter_map[f"{prefix}jc"] = lambda sk=sys_key, si=system_info: format_system_jc(
+            config.measure_point_list, sk, si
         )
-        formatter_map[f"{prefix}ss"] = lambda sk=sys_key: format_system_ss(
-            config.measure_point_realtime_list, sk
+        formatter_map[f"{prefix}ss"] = lambda sk=sys_key, si=system_info: format_system_ss(
+            config.measure_point_realtime_list, sk, si
         )
-        formatter_map[f"{prefix}yc"] = lambda sk=sys_key: format_system_yc(
-            config.alarm_data_list, sk
+        formatter_map[f"{prefix}yc"] = lambda sk=sys_key, si=system_info: format_system_yc(
+            config.alarm_data_list, sk, si
         )
 
     if data_type not in formatter_map:
         raise HTTPException(status_code=400, detail=f"不支持的数据类型: {data_type}")
 
     content = formatter_map[data_type]()
-    file_path = write_report_file(data_type.upper(), content, config.data_dir)
+    file_name = write_report_file(data_type.upper(), content, config.data_dir, system_info.mine_code or "000000000000")
+    project_root = Path(__file__).parent.parent.parent
+    data_dir = project_root / config.data_dir
+    file_path = data_dir / file_name
+    file_path.write_text(content, encoding="utf-8")
 
     return {
         "status": "success",
@@ -510,29 +515,38 @@ async def generate_all_reports():
     )
 
     config = load_config()
+    system_info = config.system_info
     files = []
 
     # 静态数据
     static_generators = [
-        ("JBSJ", lambda: format_jbsj(config.basic_devices)),
-        ("ABSJ", lambda: format_absj(config.safety_cert_list)),
-        ("JZTT", lambda: format_jztt(config.obsolete_device_list)),
-        ("JCJY", lambda: format_jcjy(config.device_test_list)),
+        ("JBSJ", lambda si=system_info: format_jbsj(config.basic_devices, si)),
+        ("ABSJ", lambda si=system_info: format_absj(config.safety_cert_list, si)),
+        ("JZTT", lambda si=system_info: format_jztt(config.obsolete_device_list, si)),
+        ("JCJY", lambda si=system_info: format_jcjy(config.device_test_list, si)),
     ]
     for name, gen in static_generators:
         content = gen()
-        fp = write_report_file(name, content, config.data_dir)
+        file_name = write_report_file(name, content, config.data_dir, system_info.mine_code or "000000000000")
+        project_root = Path(__file__).parent.parent.parent
+        data_dir = project_root / config.data_dir
+        fp = data_dir / file_name
+        fp.write_text(content, encoding="utf-8")
         files.append(str(fp))
 
     # 六大系统动态数据
     for sys_key, (code, sys_name, short) in SYSTEM_MAP.items():
         for suffix, gen in [
-            ("JC", lambda sk=sys_key: format_system_jc(config.measure_point_list, sk)),
-            ("SS", lambda sk=sys_key: format_system_ss(config.measure_point_realtime_list, sk)),
-            ("YC", lambda sk=sys_key: format_system_yc(config.alarm_data_list, sk)),
+            ("JC", lambda sk=sys_key, si=system_info: format_system_jc(config.measure_point_list, sk, si)),
+            ("SS", lambda sk=sys_key, si=system_info: format_system_ss(config.measure_point_realtime_list, sk, si)),
+            ("YC", lambda sk=sys_key, si=system_info: format_system_yc(config.alarm_data_list, sk, si)),
         ]:
             content = gen()
-            fp = write_report_file(f"{short}{suffix}", content, config.data_dir)
+            file_name = write_report_file(f"{short}{suffix}", content, config.data_dir, system_info.mine_code or "000000000000")
+            project_root = Path(__file__).parent.parent.parent
+            data_dir = project_root / config.data_dir
+            fp = data_dir / file_name
+            fp.write_text(content, encoding="utf-8")
             files.append(str(fp))
 
     return {"status": "success", "files": files, "count": len(files)}
@@ -554,18 +568,19 @@ async def mq_publish(data_type: str, backend: str = "log"):
     from ..mq_uploader import create_mq_uploader
 
     config = load_config()
+    system_info = config.system_info
 
     formatter_map = {
-        "jbsj": lambda: format_jbsj(config.basic_devices),
-        "absj": lambda: format_absj(config.safety_cert_list),
-        "jztt": lambda: format_jztt(config.obsolete_device_list),
-        "jcjy": lambda: format_jcjy(config.device_test_list),
+        "jbsj": lambda si=system_info: format_jbsj(config.basic_devices, si),
+        "absj": lambda si=system_info: format_absj(config.safety_cert_list, si),
+        "jztt": lambda si=system_info: format_jztt(config.obsolete_device_list, si),
+        "jcjy": lambda si=system_info: format_jcjy(config.device_test_list, si),
     }
     for sys_key, (code, name, short) in SYSTEM_MAP.items():
         prefix = short.lower()
-        formatter_map[f"{prefix}jc"] = lambda sk=sys_key: format_system_jc(config.measure_point_list, sk)
-        formatter_map[f"{prefix}ss"] = lambda sk=sys_key: format_system_ss(config.measure_point_realtime_list, sk)
-        formatter_map[f"{prefix}yc"] = lambda sk=sys_key: format_system_yc(config.alarm_data_list, sk)
+        formatter_map[f"{prefix}jc"] = lambda sk=sys_key, si=system_info: format_system_jc(config.measure_point_list, sk, si)
+        formatter_map[f"{prefix}ss"] = lambda sk=sys_key, si=system_info: format_system_ss(config.measure_point_realtime_list, sk, si)
+        formatter_map[f"{prefix}yc"] = lambda sk=sys_key, si=system_info: format_system_yc(config.alarm_data_list, sk, si)
 
     if data_type not in formatter_map:
         raise HTTPException(status_code=400, detail=f"不支持的数据类型: {data_type}")
@@ -593,20 +608,21 @@ async def mq_publish_all(backend: str = "log"):
     from ..mq_uploader import create_mq_uploader
 
     config = load_config()
+    system_info = config.system_info
     uploader = create_mq_uploader(backend)
     await uploader.connect()
 
     reports = {
-        "jbsj": format_jbsj(config.basic_devices),
-        "absj": format_absj(config.safety_cert_list),
-        "jztt": format_jztt(config.obsolete_device_list),
-        "jcjy": format_jcjy(config.device_test_list),
+        "jbsj": format_jbsj(config.basic_devices, system_info),
+        "absj": format_absj(config.safety_cert_list, system_info),
+        "jztt": format_jztt(config.obsolete_device_list, system_info),
+        "jcjy": format_jcjy(config.device_test_list, system_info),
     }
     for sys_key, (code, name, short) in SYSTEM_MAP.items():
         prefix = short.lower()
-        reports[f"{prefix}jc"] = format_system_jc(config.measure_point_list, sys_key)
-        reports[f"{prefix}ss"] = format_system_ss(config.measure_point_realtime_list, sys_key)
-        reports[f"{prefix}yc"] = format_system_yc(config.alarm_data_list, sys_key)
+        reports[f"{prefix}jc"] = format_system_jc(config.measure_point_list, sys_key, system_info)
+        reports[f"{prefix}ss"] = format_system_ss(config.measure_point_realtime_list, sys_key, system_info)
+        reports[f"{prefix}yc"] = format_system_yc(config.alarm_data_list, sys_key, system_info)
 
     results = await uploader.publish_all(reports)
     await uploader.disconnect()
@@ -705,6 +721,19 @@ async def get_logs(level: str = "INFO", limit: int = 100):
             pass
 
     return {"logs": log_lines, "count": len(log_lines)}
+
+
+@router.delete("/logs")
+async def clear_logs():
+    """Clear all log entries from app.log."""
+    log_file = Path(__file__).parent.parent.parent / "app.log"
+    try:
+        log_file.write_text("", encoding="utf-8")
+        logger.info("Logs cleared")
+        return {"status": "success", "message": "日志已清空"}
+    except Exception as e:
+        logger.error(f"Failed to clear logs: {e}")
+        return {"status": "error", "message": str(e)}
 
 
 # ──────────── 上传配置 API ────────────

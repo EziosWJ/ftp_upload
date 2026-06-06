@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 
-from ..config import load_config
+from ..config import get_config
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -13,7 +13,7 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 @router.get("/")
 async def dashboard(request: Request):
     """Dashboard showing device status, recent data, FTP status."""
-    config = load_config()
+    config = get_config()
     return templates.TemplateResponse(
         request, "index.html",
         {"config": config, "active_page": "dashboard"},
@@ -23,7 +23,7 @@ async def dashboard(request: Request):
 @router.get("/devices")
 async def device_list(request: Request):
     """Device management page - list all devices."""
-    config = load_config()
+    config = get_config()
     return templates.TemplateResponse(
         request, "devices.html",
         {"config": config, "active_page": "devices"},
@@ -42,7 +42,7 @@ async def device_add(request: Request):
 @router.get("/devices/{device_name}/edit")
 async def device_edit(request: Request, device_name: str):
     """Edit device form."""
-    config = load_config()
+    config = get_config()
     device = next((d for d in config.devices if d.name == device_name), None)
     if not device:
         return templates.TemplateResponse(
@@ -57,7 +57,7 @@ async def device_edit(request: Request, device_name: str):
 @router.get("/schedules")
 async def schedule_list(request: Request):
     """Schedule management page."""
-    config = load_config()
+    config = get_config()
     return templates.TemplateResponse(
         request, "schedules.html",
         {"config": config, "active_page": "schedules"},
@@ -67,7 +67,7 @@ async def schedule_list(request: Request):
 @router.get("/ftp")
 async def ftp_config(request: Request):
     """FTP configuration page."""
-    config = load_config()
+    config = get_config()
     return templates.TemplateResponse(
         request, "ftp.html",
         {"config": config, "active_page": "ftp"},
@@ -86,7 +86,7 @@ async def log_viewer(request: Request):
 @router.get("/system-info")
 async def system_info_page(request: Request):
     """System information configuration page."""
-    config = load_config()
+    config = get_config()
     return templates.TemplateResponse(
         request, "system_info.html",
         {"config": config, "active_page": "system-info"},
@@ -96,7 +96,7 @@ async def system_info_page(request: Request):
 @router.get("/device-basic-info")
 async def device_basic_info_page(request: Request):
     """Device basic information page with device list."""
-    config = load_config()
+    config = get_config()
     basic_devices_data = [d.model_dump() for d in config.basic_devices]
     return templates.TemplateResponse(
         request, "device_basic_info.html",
@@ -107,7 +107,7 @@ async def device_basic_info_page(request: Request):
 @router.get("/safety-cert")
 async def safety_cert_page(request: Request):
     """Safety certificate info page."""
-    config = load_config()
+    config = get_config()
     safety_certs_data = [c.model_dump() for c in config.safety_cert_list]
     return templates.TemplateResponse(
         request, "safety_cert.html",
@@ -118,7 +118,7 @@ async def safety_cert_page(request: Request):
 @router.get("/measure-point")
 async def measure_point_page(request: Request):
     """Measure point info page."""
-    config = load_config()
+    config = get_config()
     measure_points_data = [p.model_dump() for p in config.measure_point_list]
     return templates.TemplateResponse(
         request, "measure_point.html",
@@ -129,7 +129,7 @@ async def measure_point_page(request: Request):
 @router.get("/measure-point-realtime")
 async def measure_point_realtime_page(request: Request):
     """Measure point realtime info page."""
-    config = load_config()
+    config = get_config()
     measure_point_realtime_data = [p.model_dump() for p in config.measure_point_realtime_list]
     measure_points_data = [p.model_dump() for p in config.measure_point_list]
     return templates.TemplateResponse(
@@ -141,7 +141,7 @@ async def measure_point_realtime_page(request: Request):
 @router.get("/obsolete-devices")
 async def obsolete_device_page(request: Request):
     """Obsolete device info page (JZTT)."""
-    config = load_config()
+    config = get_config()
     items_data = [d.model_dump() for d in config.obsolete_device_list]
     return templates.TemplateResponse(
         request, "obsolete_device.html",
@@ -152,7 +152,7 @@ async def obsolete_device_page(request: Request):
 @router.get("/device-tests")
 async def device_test_page(request: Request):
     """Device test info page (JCJY)."""
-    config = load_config()
+    config = get_config()
     items_data = [t.model_dump() for t in config.device_test_list]
     return templates.TemplateResponse(
         request, "device_test.html",
@@ -163,7 +163,7 @@ async def device_test_page(request: Request):
 @router.get("/alarm-data")
 async def alarm_data_page(request: Request):
     """Alarm data page (YC)."""
-    config = load_config()
+    config = get_config()
     items_data = [a.model_dump() for a in config.alarm_data_list]
     return templates.TemplateResponse(
         request, "alarm_data.html",
